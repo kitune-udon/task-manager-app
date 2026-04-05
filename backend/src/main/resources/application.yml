@@ -20,3 +20,8 @@ management:
   endpoint:
     health:
       show-details: always
+
+app:
+  jwt:
+    secret: "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo0MTIzNDU2Nzg5MDEyMzQ="
+    expiration-millis: 3600000
