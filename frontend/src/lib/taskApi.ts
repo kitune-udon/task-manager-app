@@ -24,11 +24,19 @@ export type TaskItem = {
   updatedAt?: string
 }
 
+export type CreateTaskRequest = {
+  title: string
+  description?: string
+  status: TaskStatus
+  priority: TaskPriority
+  dueDate?: string
+  assignedUserId?: number
+}
+
 function normalizeTask(raw: TaskItem): TaskItem {
   return {
     ...raw,
-    assignedUserName:
-      raw.assignedUserName ?? raw.assigneeName ?? raw.assignee?.name ?? null,
+    assignedUserName: raw.assignedUserName ?? raw.assigneeName ?? raw.assignee?.name ?? null,
   }
 }
 
@@ -41,4 +49,11 @@ export async function fetchTasks(): Promise<TaskItem[]> {
   }
 
   return data.map((task) => normalizeTask(task))
+}
+
+export async function createTask(request: CreateTaskRequest): Promise<TaskItem> {
+  const response = await apiClient.post<ApiEnvelope<TaskItem> | TaskItem>('/api/tasks', request)
+  const data = unwrapApiData(response.data)
+
+  return normalizeTask(data)
 }

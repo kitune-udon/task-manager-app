@@ -4,9 +4,10 @@ import './App.css'
 import { login, register, extractApiErrorMessage } from './lib/authApi'
 import { UNAUTHORIZED_EVENT } from './lib/apiClient'
 import { clearAuthToken, getAuthToken, saveAuthToken } from './lib/authStorage'
-import { fetchTasks, type TaskItem } from './lib/taskApi'
+import { createTask, fetchTasks, type TaskItem } from './lib/taskApi'
 
 type AuthMode = 'login' | 'register'
+type AppPage = 'list' | 'create'
 
 const STATUS_OPTIONS = [
   { label: 'すべて', value: 'ALL' },
@@ -39,8 +40,17 @@ function formatDate(value?: string) {
   }).format(date)
 }
 
+function toApiDateTime(value: string) {
+  if (!value) {
+    return undefined
+  }
+
+  return `${value}T00:00:00`
+}
+
 function App() {
   const [mode, setMode] = useState<AuthMode>('login')
+  const [page, setPage] = useState<AppPage>('list')
   const [token, setToken] = useState<string>(() => getAuthToken())
   const [loginEmail, setLoginEmail] = useState('tasktester@example.com')
   const [loginPassword, setLoginPassword] = useState('password123')
@@ -48,6 +58,12 @@ function App() {
   const [registerEmail, setRegisterEmail] = useState('')
   const [registerPassword, setRegisterPassword] = useState('')
   const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('')
+  const [createTitle, setCreateTitle] = useState('')
+  const [createDescription, setCreateDescription] = useState('')
+  const [createStatus, setCreateStatus] = useState('TODO')
+  const [createPriority, setCreatePriority] = useState('MEDIUM')
+  const [createDueDate, setCreateDueDate] = useState('')
+  const [createAssignedUserId, setCreateAssignedUserId] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -80,6 +96,7 @@ function App() {
       setErrorMessage('認証期限が切れたため、再度ログインしてください。')
       setSuccessMessage('')
       setMode('login')
+      setPage('list')
       setTasks([])
       setTaskErrorMessage('')
     }
@@ -107,6 +124,15 @@ function App() {
     setSuccessMessage('')
   }
 
+  const resetCreateForm = () => {
+    setCreateTitle('')
+    setCreateDescription('')
+    setCreateStatus('TODO')
+    setCreatePriority('MEDIUM')
+    setCreateDueDate('')
+    setCreateAssignedUserId('')
+  }
+
   const validateRegisterForm = () => {
     if (!registerName.trim()) {
       return '名前を入力してください。'
@@ -122,6 +148,22 @@ function App() {
     }
     if (registerPassword !== registerPasswordConfirm) {
       return '確認用パスワードが一致しません。'
+    }
+    return ''
+  }
+
+  const validateCreateForm = () => {
+    if (!createTitle.trim()) {
+      return 'タイトルを入力してください。'
+    }
+    if (!createPriority.trim()) {
+      return '優先度を選択してください。'
+    }
+    if (!createStatus.trim()) {
+      return 'ステータスを選択してください。'
+    }
+    if (createAssignedUserId && !/^\d+$/.test(createAssignedUserId)) {
+      return '担当者IDは数値で入力してください。'
     }
     return ''
   }
@@ -154,6 +196,7 @@ function App() {
 
       saveAuthToken(resolvedToken)
       setToken(resolvedToken)
+      setPage('list')
       setSuccessMessage('ログインに成功しました。')
     } catch (error) {
       setErrorMessage(extractApiErrorMessage(error))
@@ -196,13 +239,156 @@ function App() {
     }
   }
 
+  const handleCreateTask = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    resetMessages()
+    setTaskErrorMessage('')
+
+    const validationMessage = validateCreateForm()
+    if (validationMessage) {
+      setTaskErrorMessage(validationMessage)
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      await createTask({
+        title: createTitle.trim(),
+        description: createDescription.trim() || undefined,
+        status: createStatus,
+        priority: createPriority,
+        dueDate: toApiDateTime(createDueDate),
+        assignedUserId: createAssignedUserId ? Number(createAssignedUserId) : undefined,
+      })
+
+      resetCreateForm()
+      await loadTasks()
+      setPage('list')
+      setSuccessMessage('タスクを作成しました。')
+    } catch (error) {
+      setTaskErrorMessage(extractApiErrorMessage(error))
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleShowCreate = () => {
+    resetMessages()
+    setTaskErrorMessage('')
+    setPage('create')
+  }
+
+  const handleBackToList = async () => {
+    resetMessages()
+    setTaskErrorMessage('')
+    setPage('list')
+    await loadTasks()
+  }
+
   const handleLogout = () => {
     clearAuthToken()
     setToken('')
     setLoginPassword('')
+    setPage('list')
     setTasks([])
     setTaskErrorMessage('')
     resetMessages()
+  }
+
+  if (isLoggedIn && page === 'create') {
+    return (
+      <main className="app-shell page-shell">
+        <section className="panel dashboard-panel form-panel">
+          <div className="panel-header list-header">
+            <div>
+              <p className="eyebrow">Task Manager MVP</p>
+              <h1>タスク作成</h1>
+              <p className="subtext">タイトルや優先度などを入力し、/api/tasks へPOSTして新規タスクを作成します。</p>
+            </div>
+            <div className="header-actions">
+              <button className="secondary-button" onClick={() => void handleBackToList()} type="button">
+                一覧へ戻る
+              </button>
+              <button className="secondary-button" onClick={handleLogout} type="button">
+                ログアウト
+              </button>
+            </div>
+          </div>
+
+          {taskErrorMessage && <div className="status-box error-box">{taskErrorMessage}</div>}
+          {successMessage && <div className="status-box success-box">{successMessage}</div>}
+
+          <form className="form-grid create-form" onSubmit={handleCreateTask}>
+            <label>
+              <span>タイトル</span>
+              <input
+                type="text"
+                value={createTitle}
+                onChange={(event) => setCreateTitle(event.target.value)}
+                placeholder="例: API接続確認タスク"
+              />
+            </label>
+
+            <label className="form-column-full">
+              <span>説明</span>
+              <textarea
+                value={createDescription}
+                onChange={(event) => setCreateDescription(event.target.value)}
+                placeholder="タスクの背景や対応内容を入力"
+                rows={4}
+              />
+            </label>
+
+            <label>
+              <span>ステータス</span>
+              <select value={createStatus} onChange={(event) => setCreateStatus(event.target.value)}>
+                {STATUS_OPTIONS.filter((option) => option.value !== 'ALL').map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>優先度</span>
+              <select value={createPriority} onChange={(event) => setCreatePriority(event.target.value)}>
+                {PRIORITY_OPTIONS.filter((option) => option.value !== 'ALL').map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>期限</span>
+              <input type="date" value={createDueDate} onChange={(event) => setCreateDueDate(event.target.value)} />
+            </label>
+
+            <label>
+              <span>担当者ID（任意）</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={createAssignedUserId}
+                onChange={(event) => setCreateAssignedUserId(event.target.value)}
+                placeholder="例: 1"
+              />
+            </label>
+
+            <div className="form-actions form-column-full">
+              <button className="secondary-button" onClick={() => void handleBackToList()} type="button">
+                キャンセル
+              </button>
+              <button className="primary-button" disabled={isSubmitting} type="submit">
+                {isSubmitting ? '作成中...' : 'タスクを作成'}
+              </button>
+            </div>
+          </form>
+        </section>
+      </main>
+    )
   }
 
   if (isLoggedIn) {
@@ -218,6 +404,9 @@ function App() {
               </p>
             </div>
             <div className="header-actions">
+              <button className="primary-button" onClick={handleShowCreate} type="button">
+                タスク作成
+              </button>
               <button className="secondary-button" onClick={() => void loadTasks()} type="button">
                 再読込
               </button>
