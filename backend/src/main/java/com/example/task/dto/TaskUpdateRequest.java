@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 
 @Getter
 @Setter
-public class TaskCreateRequest {
+public class TaskUpdateRequest {
 
     @NotBlank(message = "title is required")
     @Size(max = 200, message = "title must be 200 characters or less")
