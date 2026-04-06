@@ -1,42 +1,14 @@
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import './App.css'
+import { login, register, extractApiErrorMessage } from './lib/authApi'
+import { UNAUTHORIZED_EVENT } from './lib/apiClient'
+import { clearAuthToken, getAuthToken, saveAuthToken } from './lib/authStorage'
 
 type AuthMode = 'login' | 'register'
 
-type LoginResponse = {
-  success?: boolean
-  data?: {
-    token?: string
-    tokenType?: string
-    expiresIn?: number
-  }
-  token?: string
-  tokenType?: string
-  expiresIn?: number
-  message?: string
-}
-
-type RegisterResponse = {
-  success?: boolean
-  data?: {
-    id?: number
-    name?: string
-    email?: string
-    createdAt?: string
-  }
-  id?: number
-  name?: string
-  email?: string
-  createdAt?: string
-  message?: string
-}
-
-const API_BASE_URL = 'http://localhost:8080'
-const TOKEN_KEY = 'authToken'
-
 function App() {
   const [mode, setMode] = useState<AuthMode>('login')
-  const [token, setToken] = useState<string>(() => localStorage.getItem(TOKEN_KEY) ?? '')
+  const [token, setToken] = useState<string>(() => getAuthToken())
   const [loginEmail, setLoginEmail] = useState('tasktester@example.com')
   const [loginPassword, setLoginPassword] = useState('password123')
   const [registerName, setRegisterName] = useState('')
@@ -49,18 +21,22 @@ function App() {
 
   const isLoggedIn = useMemo(() => Boolean(token), [token])
 
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setToken('')
+      setLoginPassword('')
+      setErrorMessage('認証期限が切れたため、再度ログインしてください。')
+      setSuccessMessage('')
+      setMode('login')
+    }
+
+    window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized)
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, handleUnauthorized)
+  }, [])
+
   const resetMessages = () => {
     setErrorMessage('')
     setSuccessMessage('')
-  }
-
-  const extractMessage = async (response: Response) => {
-    try {
-      const body = await response.json()
-      return body.message ?? body.error ?? 'リクエストに失敗しました。'
-    } catch {
-      return 'リクエストに失敗しました。'
-    }
   }
 
   const validateRegisterForm = () => {
@@ -97,30 +73,22 @@ function App() {
 
     setIsSubmitting(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      const result = await login({
+        email: loginEmail.trim(),
+        password: loginPassword,
       })
 
-      if (!response.ok) {
-        setErrorMessage(await extractMessage(response))
-        return
-      }
-
-      const json: LoginResponse = await response.json()
-      const resolvedToken = json.data?.token ?? json.token ?? ''
-
+      const resolvedToken = result.token ?? ''
       if (!resolvedToken) {
         setErrorMessage('トークンの取得に失敗しました。')
         return
       }
 
-      localStorage.setItem(TOKEN_KEY, resolvedToken)
+      saveAuthToken(resolvedToken)
       setToken(resolvedToken)
       setSuccessMessage('ログインに成功しました。')
-    } catch {
-      setErrorMessage('ログイン中に通信エラーが発生しました。')
+    } catch (error) {
+      setErrorMessage(extractApiErrorMessage(error))
     } finally {
       setIsSubmitting(false)
     }
@@ -138,23 +106,13 @@ function App() {
 
     setIsSubmitting(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: registerName.trim(),
-          email: registerEmail.trim(),
-          password: registerPassword,
-        }),
+      const result = await register({
+        name: registerName.trim(),
+        email: registerEmail.trim(),
+        password: registerPassword,
       })
 
-      if (!response.ok) {
-        setErrorMessage(await extractMessage(response))
-        return
-      }
-
-      const json: RegisterResponse = await response.json()
-      const registeredEmail = json.data?.email ?? json.email ?? registerEmail.trim()
+      const registeredEmail = result.email ?? registerEmail.trim()
       setSuccessMessage(`登録に成功しました。ログインしてください。(${registeredEmail})`)
       setMode('login')
       setLoginEmail(registeredEmail)
@@ -163,15 +121,15 @@ function App() {
       setRegisterEmail('')
       setRegisterPassword('')
       setRegisterPasswordConfirm('')
-    } catch {
-      setErrorMessage('登録中に通信エラーが発生しました。')
+    } catch (error) {
+      setErrorMessage(extractApiErrorMessage(error))
     } finally {
       setIsSubmitting(false)
     }
   }
 
   const handleLogout = () => {
-    localStorage.removeItem(TOKEN_KEY)
+    clearAuthToken()
     setToken('')
     setLoginPassword('')
     resetMessages()
@@ -192,7 +150,7 @@ function App() {
           </div>
 
           <div className="status-box success-box">
-            ログイン済みです。次は 5.3 以降で API クライアント共通化とタスク画面の実装を進めます。
+            APIクライアントを共通化しました。JWT は interceptor で自動付与され、401 はログイン画面へ戻るようになっています。
           </div>
 
           <div className="token-block">
@@ -213,7 +171,7 @@ function App() {
             <h1>{mode === 'login' ? 'ログイン' : '新規登録'}</h1>
             <p className="subtext">
               {mode === 'login'
-                ? '登録済みアカウントでログインします。'
+                ? 'axios ベースの共通 API クライアント経由でログインします。'
                 : '名前・メールアドレス・パスワードを入力してアカウントを作成します。'}
             </p>
           </div>
