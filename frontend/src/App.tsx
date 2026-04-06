@@ -1,10 +1,43 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import type { FormEvent } from 'react'
 import './App.css'
 import { login, register, extractApiErrorMessage } from './lib/authApi'
 import { UNAUTHORIZED_EVENT } from './lib/apiClient'
 import { clearAuthToken, getAuthToken, saveAuthToken } from './lib/authStorage'
+import { fetchTasks, type TaskItem } from './lib/taskApi'
 
 type AuthMode = 'login' | 'register'
+
+const STATUS_OPTIONS = [
+  { label: 'すべて', value: 'ALL' },
+  { label: 'TODO', value: 'TODO' },
+  { label: 'IN_PROGRESS', value: 'IN_PROGRESS' },
+  { label: 'DONE', value: 'DONE' },
+]
+
+const PRIORITY_OPTIONS = [
+  { label: 'すべて', value: 'ALL' },
+  { label: 'LOW', value: 'LOW' },
+  { label: 'MEDIUM', value: 'MEDIUM' },
+  { label: 'HIGH', value: 'HIGH' },
+]
+
+function formatDate(value?: string) {
+  if (!value) {
+    return '-'
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return new Intl.DateTimeFormat('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date)
+}
 
 function App() {
   const [mode, setMode] = useState<AuthMode>('login')
@@ -18,8 +51,27 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [tasks, setTasks] = useState<TaskItem[]>([])
+  const [taskErrorMessage, setTaskErrorMessage] = useState('')
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [priorityFilter, setPriorityFilter] = useState('ALL')
 
   const isLoggedIn = useMemo(() => Boolean(token), [token])
+
+  const loadTasks = async () => {
+    setIsLoadingTasks(true)
+    setTaskErrorMessage('')
+
+    try {
+      const taskList = await fetchTasks()
+      setTasks(taskList)
+    } catch (error) {
+      setTaskErrorMessage(extractApiErrorMessage(error))
+    } finally {
+      setIsLoadingTasks(false)
+    }
+  }
 
   useEffect(() => {
     const handleUnauthorized = () => {
@@ -28,11 +80,27 @@ function App() {
       setErrorMessage('認証期限が切れたため、再度ログインしてください。')
       setSuccessMessage('')
       setMode('login')
+      setTasks([])
+      setTaskErrorMessage('')
     }
 
     window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized)
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, handleUnauthorized)
   }, [])
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      void loadTasks()
+    }
+  }, [isLoggedIn])
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((task) => {
+      const matchesStatus = statusFilter === 'ALL' || (task.status ?? '-') === statusFilter
+      const matchesPriority = priorityFilter === 'ALL' || (task.priority ?? '-') === priorityFilter
+      return matchesStatus && matchesPriority
+    })
+  }, [tasks, statusFilter, priorityFilter])
 
   const resetMessages = () => {
     setErrorMessage('')
@@ -132,30 +200,113 @@ function App() {
     clearAuthToken()
     setToken('')
     setLoginPassword('')
+    setTasks([])
+    setTaskErrorMessage('')
     resetMessages()
   }
 
   if (isLoggedIn) {
     return (
-      <main className="app-shell">
+      <main className="app-shell page-shell">
         <section className="panel dashboard-panel">
-          <div className="panel-header">
+          <div className="panel-header list-header">
             <div>
               <p className="eyebrow">Task Manager MVP</p>
-              <h1>タスク一覧画面（仮）</h1>
+              <h1>タスク一覧</h1>
+              <p className="subtext">
+                /api/tasks から取得した一覧を表示しています。status / priority で絞り込み可能です。
+              </p>
             </div>
-            <button className="secondary-button" onClick={handleLogout}>
-              ログアウト
-            </button>
+            <div className="header-actions">
+              <button className="secondary-button" onClick={() => void loadTasks()} type="button">
+                再読込
+              </button>
+              <button className="secondary-button" onClick={handleLogout} type="button">
+                ログアウト
+              </button>
+            </div>
           </div>
 
-          <div className="status-box success-box">
-            APIクライアントを共通化しました。JWT は interceptor で自動付与され、401 はログイン画面へ戻るようになっています。
+          <div className="filter-grid">
+            <label>
+              <span>ステータス</span>
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>優先度</span>
+              <select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}>
+                {PRIORITY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
-          <div className="token-block">
-            <p className="token-label">保存済みトークン（先頭のみ表示）</p>
-            <code>{token.slice(0, 40)}...</code>
+          <div className="summary-row">
+            <div className="summary-card">
+              <p className="summary-label">取得件数</p>
+              <strong>{tasks.length}</strong>
+            </div>
+            <div className="summary-card">
+              <p className="summary-label">表示件数</p>
+              <strong>{filteredTasks.length}</strong>
+            </div>
+          </div>
+
+          {taskErrorMessage && <div className="status-box error-box">{taskErrorMessage}</div>}
+          {successMessage && <div className="status-box success-box">{successMessage}</div>}
+
+          <div className="table-card">
+            {isLoadingTasks ? (
+              <p className="empty-message">タスクを読み込み中です...</p>
+            ) : filteredTasks.length === 0 ? (
+              <p className="empty-message">条件に一致するタスクはありません。</p>
+            ) : (
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>タイトル</th>
+                      <th>ステータス</th>
+                      <th>優先度</th>
+                      <th>担当者</th>
+                      <th>期限</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTasks.map((task) => (
+                      <tr key={String(task.id)}>
+                        <td>{task.id}</td>
+                        <td>
+                          <div className="title-cell">
+                            <strong>{task.title}</strong>
+                            {task.description && <span>{task.description}</span>}
+                          </div>
+                        </td>
+                        <td>
+                          <span className="badge">{task.status ?? '-'}</span>
+                        </td>
+                        <td>
+                          <span className="badge">{task.priority ?? '-'}</span>
+                        </td>
+                        <td>{task.assignedUserName ?? '-'}</td>
+                        <td>{formatDate(task.dueDate)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </section>
       </main>
