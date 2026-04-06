@@ -4,10 +4,10 @@ import './App.css'
 import { login, register, extractApiErrorMessage } from './lib/authApi'
 import { UNAUTHORIZED_EVENT } from './lib/apiClient'
 import { clearAuthToken, getAuthToken, saveAuthToken } from './lib/authStorage'
-import { createTask, fetchTasks, type TaskItem } from './lib/taskApi'
+import { createTask, fetchTaskById, fetchTasks, type TaskItem } from './lib/taskApi'
 
 type AuthMode = 'login' | 'register'
-type AppPage = 'list' | 'create'
+type AppPage = 'list' | 'create' | 'detail'
 
 const STATUS_OPTIONS = [
   { label: 'すべて', value: 'ALL' },
@@ -40,6 +40,25 @@ function formatDate(value?: string) {
   }).format(date)
 }
 
+function formatDateTime(value?: string) {
+  if (!value) {
+    return '-'
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return new Intl.DateTimeFormat('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
 function toApiDateTime(value: string) {
   if (!value) {
     return undefined
@@ -64,12 +83,15 @@ function App() {
   const [createPriority, setCreatePriority] = useState('MEDIUM')
   const [createDueDate, setCreateDueDate] = useState('')
   const [createAssignedUserId, setCreateAssignedUserId] = useState('')
+  const [selectedTaskId, setSelectedTaskId] = useState<number | string | null>(null)
+  const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [tasks, setTasks] = useState<TaskItem[]>([])
   const [taskErrorMessage, setTaskErrorMessage] = useState('')
   const [isLoadingTasks, setIsLoadingTasks] = useState(false)
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false)
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [priorityFilter, setPriorityFilter] = useState('ALL')
 
@@ -89,6 +111,21 @@ function App() {
     }
   }
 
+  const loadTaskDetail = async (taskId: number | string) => {
+    setIsLoadingDetail(true)
+    setTaskErrorMessage('')
+
+    try {
+      const task = await fetchTaskById(taskId)
+      setSelectedTask(task)
+    } catch (error) {
+      setTaskErrorMessage(extractApiErrorMessage(error))
+      setSelectedTask(null)
+    } finally {
+      setIsLoadingDetail(false)
+    }
+  }
+
   useEffect(() => {
     const handleUnauthorized = () => {
       setToken('')
@@ -97,6 +134,8 @@ function App() {
       setSuccessMessage('')
       setMode('login')
       setPage('list')
+      setSelectedTaskId(null)
+      setSelectedTask(null)
       setTasks([])
       setTaskErrorMessage('')
     }
@@ -110,6 +149,12 @@ function App() {
       void loadTasks()
     }
   }, [isLoggedIn])
+
+  useEffect(() => {
+    if (isLoggedIn && page === 'detail' && selectedTaskId !== null) {
+      void loadTaskDetail(selectedTaskId)
+    }
+  }, [isLoggedIn, page, selectedTaskId])
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
@@ -278,9 +323,19 @@ function App() {
     setPage('create')
   }
 
+  const handleShowDetail = (taskId: number | string) => {
+    resetMessages()
+    setTaskErrorMessage('')
+    setSelectedTaskId(taskId)
+    setSelectedTask(null)
+    setPage('detail')
+  }
+
   const handleBackToList = async () => {
     resetMessages()
     setTaskErrorMessage('')
+    setSelectedTaskId(null)
+    setSelectedTask(null)
     setPage('list')
     await loadTasks()
   }
@@ -290,9 +345,94 @@ function App() {
     setToken('')
     setLoginPassword('')
     setPage('list')
+    setSelectedTaskId(null)
+    setSelectedTask(null)
     setTasks([])
     setTaskErrorMessage('')
     resetMessages()
+  }
+
+  if (isLoggedIn && page === 'detail') {
+    return (
+      <main className="app-shell page-shell">
+        <section className="panel dashboard-panel detail-panel">
+          <div className="panel-header list-header">
+            <div>
+              <p className="eyebrow">Task Manager MVP</p>
+              <h1>タスク詳細</h1>
+              <p className="subtext">/api/tasks/{'{id}'} から取得したタスク詳細を表示しています。</p>
+            </div>
+            <div className="header-actions">
+              <button className="secondary-button" onClick={() => void handleBackToList()} type="button">
+                一覧へ戻る
+              </button>
+              <button className="secondary-button" onClick={handleLogout} type="button">
+                ログアウト
+              </button>
+            </div>
+          </div>
+
+          {taskErrorMessage && <div className="status-box error-box">{taskErrorMessage}</div>}
+          {successMessage && <div className="status-box success-box">{successMessage}</div>}
+
+          <div className="table-card detail-card">
+            {isLoadingDetail ? (
+              <p className="empty-message">タスク詳細を読み込み中です...</p>
+            ) : !selectedTask ? (
+              <p className="empty-message">タスク詳細を取得できませんでした。</p>
+            ) : (
+              <div className="detail-grid">
+                <div className="detail-item">
+                  <span className="detail-label">ID</span>
+                  <strong>{selectedTask.id}</strong>
+                </div>
+                <div className="detail-item detail-item-wide">
+                  <span className="detail-label">タイトル</span>
+                  <strong>{selectedTask.title}</strong>
+                </div>
+                <div className="detail-item detail-item-wide">
+                  <span className="detail-label">説明</span>
+                  <p>{selectedTask.description ?? '-'}</p>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">ステータス</span>
+                  <span className="badge">{selectedTask.status ?? '-'}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">優先度</span>
+                  <span className="badge">{selectedTask.priority ?? '-'}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">担当者</span>
+                  <strong>{selectedTask.assignedUserName ?? '-'}</strong>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">期限</span>
+                  <strong>{formatDate(selectedTask.dueDate)}</strong>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">作成日時</span>
+                  <strong>{formatDateTime(selectedTask.createdAt)}</strong>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">更新日時</span>
+                  <strong>{formatDateTime(selectedTask.updatedAt)}</strong>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="detail-actions">
+            <button className="secondary-button" type="button" disabled>
+              編集
+            </button>
+            <button className="secondary-button danger-button" type="button" disabled>
+              削除
+            </button>
+          </div>
+        </section>
+      </main>
+    )
   }
 
   if (isLoggedIn && page === 'create') {
@@ -470,6 +610,7 @@ function App() {
                       <th>優先度</th>
                       <th>担当者</th>
                       <th>期限</th>
+                      <th>操作</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -490,6 +631,11 @@ function App() {
                         </td>
                         <td>{task.assignedUserName ?? '-'}</td>
                         <td>{formatDate(task.dueDate)}</td>
+                        <td>
+                          <button className="secondary-button table-action-button" onClick={() => handleShowDetail(task.id)} type="button">
+                            詳細
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

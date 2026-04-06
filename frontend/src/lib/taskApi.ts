@@ -51,6 +51,12 @@ export async function fetchTasks(): Promise<TaskItem[]> {
   return data.map((task) => normalizeTask(task))
 }
 
+export async function fetchTaskById(id: number | string): Promise<TaskItem> {
+  const response = await apiClient.get<ApiEnvelope<TaskItem> | TaskItem>(`/api/tasks/${id}`)
+  const data = unwrapApiData(response.data)
+  return normalizeTask(data)
+}
+
 export async function createTask(request: CreateTaskRequest): Promise<TaskItem> {
   const response = await apiClient.post<ApiEnvelope<TaskItem> | TaskItem>('/api/tasks', request)
   const data = unwrapApiData(response.data)
