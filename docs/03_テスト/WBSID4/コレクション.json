@@ -1,0 +1,672 @@
+{
+	"info": {
+		"_postman_id": "3cdf60eb-1864-49e7-b2e5-fa609d87c103",
+		"name": "Task Manager API - WBSID4 Full Test",
+		"description": "JWT認証 + タスクCRUD + 異常系確認用の完全版コレクション",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "43340608",
+		"_collection_link": "https://speeding-eclipse-950354.postman.co/workspace/Team-Workspace~38b33334-8e55-4d54-84fa-910a27a483eb/collection/43340608-3cdf60eb-1864-49e7-b2e5-fa609d87c103?action=share&source=collection_link&creator=43340608"
+	},
+	"item": [
+		{
+			"name": "01 Register",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('Status code is 201 or 400', function () {",
+							"    pm.expect([201, 400]).to.include(pm.response.code);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"name\": \"{{userName}}\",\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+				},
+				"url": {
+					"raw": "{{baseProtocol}}://{{baseHost}}:{{basePort}}/api/auth/register",
+					"protocol": "{{baseProtocol}}",
+					"host": [
+						"{{baseHost}}"
+					],
+					"port": "{{basePort}}",
+					"path": [
+						"api",
+						"auth",
+						"register"
+					]
+				},
+				"description": "初回登録用。同一メールが既に存在する場合は400でも許容。"
+			},
+			"response": []
+		},
+		{
+			"name": "02 Login",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('Status code is 200', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"var jsonData = pm.response.json();",
+							"pm.test('token exists', function () {",
+							"    pm.expect(jsonData.token).to.be.a('string').and.not.empty;",
+							"});",
+							"pm.collectionVariables.set('token', jsonData.token);",
+							"pm.environment.set('token', jsonData.token);"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+				},
+				"url": {
+					"raw": "{{baseProtocol}}://{{baseHost}}:{{basePort}}/api/auth/login",
+					"protocol": "{{baseProtocol}}",
+					"host": [
+						"{{baseHost}}"
+					],
+					"port": "{{basePort}}",
+					"path": [
+						"api",
+						"auth",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "03 Auth Test Me",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+							"var jsonData = pm.response.json();",
+							"pm.test('userId exists', function () { pm.expect(jsonData.userId).to.exist; });",
+							"pm.test('email matches', function () { pm.expect(jsonData.email).to.eql(pm.environment.get('userEmail')); });"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseProtocol}}://{{baseHost}}:{{basePort}}/api/auth-test/me",
+					"protocol": "{{baseProtocol}}",
+					"host": [
+						"{{baseHost}}"
+					],
+					"port": "{{basePort}}",
+					"path": [
+						"api",
+						"auth-test",
+						"me"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "04 Create Task",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 201 or 200', function () { pm.expect([200, 201]).to.include(pm.response.code); });",
+							"var jsonData = pm.response.json();",
+							"var body = (jsonData && jsonData.data !== undefined) ? jsonData.data : jsonData;",
+							"pm.test('task id exists', function () { pm.expect(body.id).to.exist; });",
+							"pm.collectionVariables.set('taskId', String(body.id));",
+							"pm.environment.set('taskId', String(body.id));"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"title\": \"{{taskTitle}}\",\n  \"description\": \"{{taskDescription}}\",\n  \"status\": \"{{taskStatus}}\",\n  \"priority\": \"{{taskPriority}}\",\n  \"dueDate\": \"{{taskDueDate}}\",\n  \"assignedUserId\": {{assignedUserId}}\n}"
+				},
+				"url": {
+					"raw": "{{baseProtocol}}://{{baseHost}}:{{basePort}}/api/tasks",
+					"protocol": "{{baseProtocol}}",
+					"host": [
+						"{{baseHost}}"
+					],
+					"port": "{{basePort}}",
+					"path": [
+						"api",
+						"tasks"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "05 List Tasks",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('Status code is 200', function () { pm.response.to.have.status(200); });"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseProtocol}}://{{baseHost}}:{{basePort}}/api/tasks",
+					"protocol": "{{baseProtocol}}",
+					"host": [
+						"{{baseHost}}"
+					],
+					"port": "{{basePort}}",
+					"path": [
+						"api",
+						"tasks"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "06 List Tasks - status filter",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseProtocol}}://{{baseHost}}:{{basePort}}/api/tasks?status={{taskStatus}}",
+					"protocol": "{{baseProtocol}}",
+					"host": [
+						"{{baseHost}}"
+					],
+					"port": "{{basePort}}",
+					"path": [
+						"api",
+						"tasks"
+					],
+					"query": [
+						{
+							"key": "status",
+							"value": "{{taskStatus}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "07 List Tasks - keyword filter",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseProtocol}}://{{baseHost}}:{{basePort}}/api/tasks?keyword={{taskKeyword}}",
+					"protocol": "{{baseProtocol}}",
+					"host": [
+						"{{baseHost}}"
+					],
+					"port": "{{basePort}}",
+					"path": [
+						"api",
+						"tasks"
+					],
+					"query": [
+						{
+							"key": "keyword",
+							"value": "{{taskKeyword}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "08 Get Task Detail",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+							"var jsonData = pm.response.json();",
+							"var body = (jsonData && jsonData.data !== undefined) ? jsonData.data : jsonData;",
+							"pm.test('task id matches', function () { pm.expect(String(body.id)).to.eql(pm.environment.get('taskId')); });"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseProtocol}}://{{baseHost}}:{{basePort}}/api/tasks/{{taskId}}",
+					"protocol": "{{baseProtocol}}",
+					"host": [
+						"{{baseHost}}"
+					],
+					"port": "{{basePort}}",
+					"path": [
+						"api",
+						"tasks",
+						"{{taskId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "09 Update Task",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"var jsonData = pm.response.json();",
+							"var body = jsonData.data ? jsonData.data : jsonData;",
+							"",
+							"pm.test('title updated', function () {",
+							"    pm.expect(body.title).to.eql(pm.environment.get('updatedTaskTitle'));",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"title\": \"{{updatedTaskTitle}}\",\n  \"description\": \"{{updatedTaskDescription}}\",\n  \"status\": \"{{updatedTaskStatus}}\",\n  \"priority\": \"{{updatedTaskPriority}}\",\n  \"dueDate\": \"{{updatedTaskDueDate}}\",\n  \"assignedUserId\": {{assignedUserId}}\n}"
+				},
+				"url": {
+					"raw": "{{baseProtocol}}://{{baseHost}}:{{basePort}}/api/tasks/{{taskId}}",
+					"protocol": "{{baseProtocol}}",
+					"host": [
+						"{{baseHost}}"
+					],
+					"port": "{{basePort}}",
+					"path": [
+						"api",
+						"tasks",
+						"{{taskId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "10 Delete Task",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('Status code is 204 or 200', function () {",
+							"    pm.expect([200, 204]).to.include(pm.response.code);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseProtocol}}://{{baseHost}}:{{basePort}}/api/tasks/{{taskId}}",
+					"protocol": "{{baseProtocol}}",
+					"host": [
+						"{{baseHost}}"
+					],
+					"port": "{{basePort}}",
+					"path": [
+						"api",
+						"tasks",
+						"{{taskId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "11 Get Deleted Task - expect 404",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('Status code is 404', function () { pm.response.to.have.status(404); });"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseProtocol}}://{{baseHost}}:{{basePort}}/api/tasks/{{taskId}}",
+					"protocol": "{{baseProtocol}}",
+					"host": [
+						"{{baseHost}}"
+					],
+					"port": "{{basePort}}",
+					"path": [
+						"api",
+						"tasks",
+						"{{taskId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "12 Get Tasks without token - expect 401",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('Status code is 401', function () { pm.response.to.have.status(401); });"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseProtocol}}://{{baseHost}}:{{basePort}}/api/tasks",
+					"protocol": "{{baseProtocol}}",
+					"host": [
+						"{{baseHost}}"
+					],
+					"port": "{{basePort}}",
+					"path": [
+						"api",
+						"tasks"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "13 Create Task with invalid assignedUserId - expect 400 or 404",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('Status code is 400 or 404', function () {",
+							"    pm.expect([400, 404]).to.include(pm.response.code);",
+							"});"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"title\": \"不正担当者確認\",\n  \"description\": \"assignedUserId チェック\",\n  \"status\": \"TODO\",\n  \"priority\": \"LOW\",\n  \"dueDate\": \"{{taskDueDate}}\",\n  \"assignedUserId\": 999999\n}"
+				},
+				"url": {
+					"raw": "{{baseProtocol}}://{{baseHost}}:{{basePort}}/api/tasks",
+					"protocol": "{{baseProtocol}}",
+					"host": [
+						"{{baseHost}}"
+					],
+					"port": "{{basePort}}",
+					"path": [
+						"api",
+						"tasks"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "14 Create Task without title - expect 400",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('Status code is 400', function () { pm.response.to.have.status(400); });"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"description\": \"titleなし\",\n  \"status\": \"TODO\",\n  \"priority\": \"LOW\",\n  \"dueDate\": \"{{taskDueDate}}\",\n  \"assignedUserId\": {{assignedUserId}}\n}"
+				},
+				"url": {
+					"raw": "{{baseProtocol}}://{{baseHost}}:{{basePort}}/api/tasks",
+					"protocol": "{{baseProtocol}}",
+					"host": [
+						"{{baseHost}}"
+					],
+					"port": "{{basePort}}",
+					"path": [
+						"api",
+						"tasks"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080"
+		},
+		{
+			"key": "baseProtocol",
+			"value": "http"
+		},
+		{
+			"key": "baseHost",
+			"value": "localhost"
+		},
+		{
+			"key": "basePort",
+			"value": "8080"
+		},
+		{
+			"key": "userName",
+			"value": "task tester"
+		},
+		{
+			"key": "userEmail",
+			"value": "tasktester@example.com"
+		},
+		{
+			"key": "userPassword",
+			"value": "password123"
+		},
+		{
+			"key": "assignedUserId",
+			"value": "1"
+		},
+		{
+			"key": "taskTitle",
+			"value": "JWT疎通確認タスク"
+		},
+		{
+			"key": "taskDescription",
+			"value": "WBSID4 の createTask 確認"
+		},
+		{
+			"key": "taskStatus",
+			"value": "TODO"
+		},
+		{
+			"key": "taskPriority",
+			"value": "HIGH"
+		},
+		{
+			"key": "taskDueDate",
+			"value": "2026-04-10"
+		},
+		{
+			"key": "taskKeyword",
+			"value": "JWT"
+		},
+		{
+			"key": "updatedTaskTitle",
+			"value": "JWT疎通確認タスク_更新後"
+		},
+		{
+			"key": "updatedTaskDescription",
+			"value": "更新APIの確認"
+		},
+		{
+			"key": "updatedTaskStatus",
+			"value": "IN_PROGRESS"
+		},
+		{
+			"key": "updatedTaskPriority",
+			"value": "MEDIUM"
+		},
+		{
+			"key": "updatedTaskDueDate",
+			"value": "2026-04-15"
+		},
+		{
+			"key": "token",
+			"value": ""
+		},
+		{
+			"key": "taskId",
+			"value": ""
+		}
+	]
+}
