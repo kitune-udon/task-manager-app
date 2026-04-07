@@ -3,10 +3,14 @@ import { login, register, extractApiErrorMessage } from '../lib/authApi'
 import { UNAUTHORIZED_EVENT } from '../lib/apiClient'
 import {
   clearAuthToken,
+  clearPostLoginRedirectPath,
   clearUserDisplayName,
+  consumePostLoginRedirectPath,
   getAuthToken,
   getUserDisplayName,
+  isProtectedPath,
   saveAuthToken,
+  savePostLoginRedirectPath,
   saveUserDisplayName,
 } from '../lib/authStorage'
 
@@ -18,7 +22,9 @@ type Params = {
 }
 
 export function useAuthState({ go, onUnauthorized }: Params) {
-  const [mode, setMode] = useState<AuthMode>('login')
+  const resolveAuthMode = (pathname: string): AuthMode => (pathname === '/signup' ? 'register' : 'login')
+
+  const [mode, setMode] = useState<AuthMode>(() => resolveAuthMode(window.location.pathname))
   const [token, setToken] = useState<string>(() => getAuthToken())
   const [currentUserLabel, setCurrentUserLabel] = useState<string>(() => getUserDisplayName())
 
@@ -43,11 +49,17 @@ export function useAuthState({ go, onUnauthorized }: Params) {
   const showLogin = () => {
     resetMessages()
     setMode('login')
+    if (window.location.pathname !== '/login') {
+      go('/login', true)
+    }
   }
 
   const showRegister = () => {
     resetMessages()
     setMode('register')
+    if (window.location.pathname !== '/signup') {
+      go('/signup', true)
+    }
   }
 
   const validateRegisterForm = () => {
@@ -87,7 +99,8 @@ export function useAuthState({ go, onUnauthorized }: Params) {
       saveUserDisplayName(loginEmail.trim())
       setToken(resolvedToken)
       setCurrentUserLabel(loginEmail.trim())
-      go('/tasks', true)
+      const redirectPath = consumePostLoginRedirectPath()
+      go(redirectPath || '/tasks', true)
       setSuccessMessage('ログインに成功しました。')
     } catch (error) {
       setErrorMessage(extractApiErrorMessage(error))
@@ -117,6 +130,7 @@ export function useAuthState({ go, onUnauthorized }: Params) {
 
       setSuccessMessage(`登録に成功しました。ログインしてください。(${registeredEmail})`)
       setMode('login')
+      go('/login', true)
       setLoginEmail(registeredEmail)
       setLoginPassword('')
       saveUserDisplayName(result.name ?? registerName.trim() ?? registeredEmail)
@@ -134,15 +148,20 @@ export function useAuthState({ go, onUnauthorized }: Params) {
   const handleLogout = () => {
     clearAuthToken()
     clearUserDisplayName()
+    clearPostLoginRedirectPath()
     setToken('')
     setCurrentUserLabel('')
     setLoginPassword('')
     resetMessages()
-    go('/', true)
+    go('/login', true)
   }
 
   useEffect(() => {
     const handleUnauthorized = () => {
+      const currentPath = window.location.pathname
+      if (isProtectedPath(currentPath)) {
+        savePostLoginRedirectPath(currentPath)
+      }
       clearUserDisplayName()
       setToken('')
       setCurrentUserLabel('')
@@ -151,7 +170,7 @@ export function useAuthState({ go, onUnauthorized }: Params) {
       setSuccessMessage('')
       setMode('login')
       onUnauthorized?.()
-      go('/', true)
+      go('/login', true)
     }
 
     window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized)
@@ -161,8 +180,33 @@ export function useAuthState({ go, onUnauthorized }: Params) {
   }, [go, onUnauthorized])
 
   useEffect(() => {
-    if (isLoggedIn && window.location.pathname === '/') {
-      go('/tasks', true)
+    const syncAuthRoute = () => {
+      const currentPath = window.location.pathname
+
+      if (!isLoggedIn && isProtectedPath(currentPath)) {
+        savePostLoginRedirectPath(currentPath)
+        setMode('login')
+        if (currentPath !== '/login') {
+          go('/login', true)
+        }
+        return
+      }
+
+      if (!isLoggedIn) {
+        setMode(resolveAuthMode(currentPath))
+        return
+      }
+
+      if (currentPath === '/login' || currentPath === '/signup' || currentPath === '/') {
+        const redirectPath = consumePostLoginRedirectPath()
+        go(redirectPath || '/tasks', true)
+      }
+    }
+
+    syncAuthRoute()
+    window.addEventListener('popstate', syncAuthRoute)
+    return () => {
+      window.removeEventListener('popstate', syncAuthRoute)
     }
   }, [go, isLoggedIn])
 
