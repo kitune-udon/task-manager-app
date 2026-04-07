@@ -51,4 +51,8 @@ public class Task extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_user_id")
     private User assignedUser;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "created_by", nullable = false)
+    private User createdBy;
 }

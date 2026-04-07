@@ -2,6 +2,7 @@ package com.example.task.service;
 
 import com.example.task.dto.TaskCreateRequest;
 import com.example.task.dto.TaskResponse;
+import com.example.task.dto.TaskUserResponse;
 import com.example.task.dto.TaskUpdateRequest;
 import com.example.task.entity.Priority;
 import com.example.task.entity.Task;
@@ -11,6 +12,7 @@ import com.example.task.exception.ErrorCode;
 import com.example.task.exception.ResourceNotFoundException;
 import com.example.task.repository.TaskRepository;
 import com.example.task.repository.UserRepository;
+import com.example.task.security.CurrentUserProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,10 +24,16 @@ public class TaskService {
 
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
+    private final CurrentUserProvider currentUserProvider;
 
-    public TaskService(TaskRepository taskRepository, UserRepository userRepository) {
+    public TaskService(
+            TaskRepository taskRepository,
+            UserRepository userRepository,
+            CurrentUserProvider currentUserProvider
+    ) {
         this.taskRepository = taskRepository;
         this.userRepository = userRepository;
+        this.currentUserProvider = currentUserProvider;
     }
 
     @Transactional
@@ -37,6 +45,7 @@ public class TaskService {
                 .priority(request.getPriority())
                 .dueDate(request.getDueDate())
                 .assignedUser(resolveAssignedUser(request.getAssignedUserId()))
+                .createdBy(resolveCurrentUser())
                 .build();
 
         Task saved = taskRepository.save(task);
@@ -98,6 +107,16 @@ public class TaskService {
                 ));
     }
 
+    private User resolveCurrentUser() {
+        Long currentUserId = currentUserProvider.getCurrentUserId();
+
+        return userRepository.findById(currentUserId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.USR_002,
+                        "ユーザーが存在しません"
+                ));
+    }
+
     private String toKeywordPattern(String keyword) {
         if (keyword == null || keyword.isBlank()) {
             return null;
@@ -107,6 +126,7 @@ public class TaskService {
 
     private TaskResponse toResponse(Task task) {
         User assignedUser = task.getAssignedUser();
+        User createdBy = task.getCreatedBy();
         return TaskResponse.builder()
                 .id(task.getId())
                 .title(task.getTitle())
@@ -116,8 +136,23 @@ public class TaskService {
                 .dueDate(task.getDueDate())
                 .assignedUserId(assignedUser != null ? assignedUser.getId() : null)
                 .assignedUserName(assignedUser != null ? assignedUser.getName() : null)
+                .assignedUser(toTaskUserResponse(assignedUser))
+                .createdById(createdBy != null ? createdBy.getId() : null)
+                .createdByName(createdBy != null ? createdBy.getName() : null)
+                .createdBy(toTaskUserResponse(createdBy))
                 .createdAt(task.getCreatedAt())
                 .updatedAt(task.getUpdatedAt())
+                .build();
+    }
+
+    private TaskUserResponse toTaskUserResponse(User user) {
+        if (user == null) {
+            return null;
+        }
+
+        return TaskUserResponse.builder()
+                .id(user.getId())
+                .name(user.getName())
                 .build();
     }
 }

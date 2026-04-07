@@ -13,7 +13,7 @@ import java.util.Optional;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
-    @EntityGraph(attributePaths = {"assignedUser"})
+    @EntityGraph(attributePaths = {"assignedUser", "createdBy"})
     @Query("""
             select t
             from Task t
@@ -30,6 +30,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("keywordPattern") String keywordPattern
     );
 
-    @EntityGraph(attributePaths = {"assignedUser"})
+    @EntityGraph(attributePaths = {"assignedUser", "createdBy"})
     Optional<Task> findWithAssignedUserById(Long id);
 }

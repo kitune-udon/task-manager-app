@@ -10,7 +10,7 @@ import {
   type TaskPriority,
   type TaskStatus,
 } from '../lib/taskApi'
-import { extractApiErrorMessage, extractFieldErrorsFromApiError, hasFieldErrors, resolveUserMessage } from '../lib/authApi'
+import { extractFieldErrorsFromApiError, hasFieldErrors, resolveUserMessage } from '../lib/authApi'
 import type { FieldErrors } from '../lib/apiError'
 import type { ResolvedRoute } from '../app_navigation'
 
