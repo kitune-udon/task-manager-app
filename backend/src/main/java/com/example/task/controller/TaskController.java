@@ -1,8 +1,8 @@
 package com.example.task.controller;
 
-import com.example.task.dto.ApiResponse;
 import com.example.task.dto.TaskCreateRequest;
 import com.example.task.dto.TaskResponse;
+import com.example.task.dto.TaskSummaryResponse;
 import com.example.task.dto.TaskUpdateRequest;
 import com.example.task.entity.Priority;
 import com.example.task.entity.TaskStatus;
@@ -25,52 +25,35 @@ public class TaskController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<TaskResponse>> createTask(@Valid @RequestBody TaskCreateRequest request) {
+    public ResponseEntity<TaskResponse> createTask(@Valid @RequestBody TaskCreateRequest request) {
         TaskResponse response = taskService.createTask(request);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.<TaskResponse>builder()
-                        .success(true)
-                        .data(response)
-                        .message("Task created successfully.")
-                        .build());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<TaskResponse>>> getTasks(
+    public ResponseEntity<List<TaskSummaryResponse>> getTasks(
             @RequestParam(required = false) TaskStatus status,
             @RequestParam(required = false) Priority priority,
             @RequestParam(required = false) Long assignedUserId,
             @RequestParam(required = false) String keyword
     ) {
-        List<TaskResponse> response = taskService.getTasks(status, priority, assignedUserId, keyword);
-        return ResponseEntity.ok(ApiResponse.<List<TaskResponse>>builder()
-                .success(true)
-                .data(response)
-                .message("Tasks fetched successfully.")
-                .build());
+        List<TaskSummaryResponse> response = taskService.getTasks(status, priority, assignedUserId, keyword);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{taskId}")
-    public ResponseEntity<ApiResponse<TaskResponse>> getTask(@PathVariable Long taskId) {
+    public ResponseEntity<TaskResponse> getTask(@PathVariable Long taskId) {
         TaskResponse response = taskService.getTask(taskId);
-        return ResponseEntity.ok(ApiResponse.<TaskResponse>builder()
-                .success(true)
-                .data(response)
-                .message("Task fetched successfully.")
-                .build());
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{taskId}")
-    public ResponseEntity<ApiResponse<TaskResponse>> updateTask(
+    public ResponseEntity<TaskResponse> updateTask(
             @PathVariable Long taskId,
             @Valid @RequestBody TaskUpdateRequest request
     ) {
         TaskResponse response = taskService.updateTask(taskId, request);
-        return ResponseEntity.ok(ApiResponse.<TaskResponse>builder()
-                .success(true)
-                .data(response)
-                .message("Task updated successfully.")
-                .build());
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{taskId}")

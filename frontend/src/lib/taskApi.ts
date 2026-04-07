@@ -1,6 +1,4 @@
 import { apiClient } from './apiClient'
-import { unwrapApiData } from './apiTypes'
-import type { ApiEnvelope } from './apiTypes'
 
 export type TaskStatus = 'TODO' | 'DOING' | 'DONE' | string
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | string
@@ -56,8 +54,8 @@ function normalizeTask(raw: TaskItem): TaskItem {
 }
 
 export async function fetchTasks(): Promise<TaskItem[]> {
-  const response = await apiClient.get<ApiEnvelope<TaskItem[]> | TaskItem[]>('/api/tasks')
-  const data = unwrapApiData(response.data)
+  const response = await apiClient.get<TaskItem[]>('/api/tasks')
+  const data = response.data
 
   if (!Array.isArray(data)) {
     return []
@@ -67,8 +65,8 @@ export async function fetchTasks(): Promise<TaskItem[]> {
 }
 
 export async function fetchTaskById(id: number | string): Promise<TaskItem | null> {
-  const response = await apiClient.get<ApiEnvelope<TaskItem> | TaskItem>(`/api/tasks/${id}`)
-  const data = unwrapApiData(response.data)
+  const response = await apiClient.get<TaskItem>(`/api/tasks/${id}`)
+  const data = response.data
 
   if (!data) {
     return null
@@ -78,15 +76,13 @@ export async function fetchTaskById(id: number | string): Promise<TaskItem | nul
 }
 
 export async function createTask(request: CreateTaskRequest): Promise<TaskItem> {
-  const response = await apiClient.post<ApiEnvelope<TaskItem> | TaskItem>('/api/tasks', request)
-  const data = unwrapApiData(response.data)
-  return normalizeTask(data)
+  const response = await apiClient.post<TaskItem>('/api/tasks', request)
+  return normalizeTask(response.data)
 }
 
 export async function updateTask(id: number | string, request: UpdateTaskRequest): Promise<TaskItem> {
-  const response = await apiClient.put<ApiEnvelope<TaskItem> | TaskItem>(`/api/tasks/${id}`, request)
-  const data = unwrapApiData(response.data)
-  return normalizeTask(data)
+  const response = await apiClient.put<TaskItem>(`/api/tasks/${id}`, request)
+  return normalizeTask(response.data)
 }
 
 export async function deleteTask(id: number | string): Promise<void> {

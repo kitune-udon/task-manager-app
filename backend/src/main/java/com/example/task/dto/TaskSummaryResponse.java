@@ -10,15 +10,12 @@ import java.time.LocalDateTime;
 
 @Getter
 @Builder
-public class TaskResponse {
+public class TaskSummaryResponse {
     private Long id;
     private String title;
-    private String description;
     private TaskStatus status;
     private Priority priority;
     private LocalDate dueDate;
     private TaskUserResponse assignedUser;
-    private TaskUserResponse createdBy;
-    private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

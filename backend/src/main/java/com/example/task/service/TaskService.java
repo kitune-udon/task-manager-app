@@ -2,6 +2,7 @@ package com.example.task.service;
 
 import com.example.task.dto.TaskCreateRequest;
 import com.example.task.dto.TaskResponse;
+import com.example.task.dto.TaskSummaryResponse;
 import com.example.task.dto.TaskUserResponse;
 import com.example.task.dto.TaskUpdateRequest;
 import com.example.task.entity.Priority;
@@ -49,22 +50,22 @@ public class TaskService {
                 .build();
 
         Task saved = taskRepository.save(task);
-        return toResponse(saved);
+        return toDetailResponse(saved);
     }
 
     @Transactional(readOnly = true)
-    public List<TaskResponse> getTasks(TaskStatus status, Priority priority, Long assignedUserId, String keyword) {
+    public List<TaskSummaryResponse> getTasks(TaskStatus status, Priority priority, Long assignedUserId, String keyword) {
         String keywordPattern = toKeywordPattern(keyword);
 
         return taskRepository.search(status, priority, assignedUserId, keywordPattern)
                 .stream()
-                .map(this::toResponse)
+                .map(this::toSummaryResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public TaskResponse getTask(Long taskId) {
-        return toResponse(getTaskEntity(taskId));
+        return toDetailResponse(getTaskEntity(taskId));
     }
 
     @Transactional
@@ -78,7 +79,7 @@ public class TaskService {
         task.setAssignedUser(resolveAssignedUser(request.getAssignedUserId()));
 
         Task saved = taskRepository.save(task);
-        return toResponse(saved);
+        return toDetailResponse(saved);
     }
 
     @Transactional
@@ -124,9 +125,24 @@ public class TaskService {
         return "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%";
     }
 
-    private TaskResponse toResponse(Task task) {
+    private TaskSummaryResponse toSummaryResponse(Task task) {
+        User assignedUser = task.getAssignedUser();
+
+        return TaskSummaryResponse.builder()
+                .id(task.getId())
+                .title(task.getTitle())
+                .status(task.getStatus())
+                .priority(task.getPriority())
+                .dueDate(task.getDueDate())
+                .assignedUser(toTaskUserResponse(assignedUser))
+                .updatedAt(task.getUpdatedAt())
+                .build();
+    }
+
+    private TaskResponse toDetailResponse(Task task) {
         User assignedUser = task.getAssignedUser();
         User createdBy = task.getCreatedBy();
+
         return TaskResponse.builder()
                 .id(task.getId())
                 .title(task.getTitle())
@@ -134,11 +150,7 @@ public class TaskService {
                 .status(task.getStatus())
                 .priority(task.getPriority())
                 .dueDate(task.getDueDate())
-                .assignedUserId(assignedUser != null ? assignedUser.getId() : null)
-                .assignedUserName(assignedUser != null ? assignedUser.getName() : null)
                 .assignedUser(toTaskUserResponse(assignedUser))
-                .createdById(createdBy != null ? createdBy.getId() : null)
-                .createdByName(createdBy != null ? createdBy.getName() : null)
                 .createdBy(toTaskUserResponse(createdBy))
                 .createdAt(task.getCreatedAt())
                 .updatedAt(task.getUpdatedAt())
