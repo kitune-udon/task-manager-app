@@ -23,6 +23,8 @@ import {
 
 export type AuthMode = 'login' | 'register'
 
+const EMAIL_PATTERN = /^\S+@\S+\.\S+$/
+
 type Params = {
   go: (path: string, replace?: boolean) => void
   onUnauthorized?: () => void
@@ -101,9 +103,12 @@ export function useAuthState({ go, onUnauthorized }: Params) {
 
   const validateLoginForm = (): FieldErrors => {
     const next: FieldErrors = {}
+    const trimmedLoginEmail = loginEmail.trim()
 
-    if (!loginEmail.trim()) {
+    if (!trimmedLoginEmail) {
       next.email = 'メールアドレスを入力してください。'
+    } else if (!EMAIL_PATTERN.test(trimmedLoginEmail)) {
+      next.email = 'メールアドレスの形式が不正です。'
     }
 
     if (!loginPassword.trim()) {
@@ -115,14 +120,15 @@ export function useAuthState({ go, onUnauthorized }: Params) {
 
   const validateRegisterForm = (): FieldErrors => {
     const next: FieldErrors = {}
+    const trimmedRegisterEmail = registerEmail.trim()
 
     if (!registerName.trim()) {
       next.name = '名前を入力してください。'
     }
 
-    if (!registerEmail.trim()) {
+    if (!trimmedRegisterEmail) {
       next.email = 'メールアドレスを入力してください。'
-    } else if (!/^\S+@\S+\.\S+$/.test(registerEmail)) {
+    } else if (!EMAIL_PATTERN.test(trimmedRegisterEmail)) {
       next.email = 'メールアドレスの形式が不正です。'
     }
 
@@ -130,7 +136,9 @@ export function useAuthState({ go, onUnauthorized }: Params) {
       next.password = 'パスワードは8文字以上で入力してください。'
     }
 
-    if (registerPassword !== registerPasswordConfirm) {
+    if (!registerPasswordConfirm.trim()) {
+      next.passwordConfirm = '確認用パスワードを入力してください。'
+    } else if (registerPassword !== registerPasswordConfirm) {
       next.passwordConfirm = '確認用パスワードが一致しません。'
     }
 
