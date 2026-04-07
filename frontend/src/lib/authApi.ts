@@ -9,8 +9,11 @@ export type LoginRequest = {
 
 export type LoginResponse = {
   token?: string
-  tokenType?: string
-  expiresIn?: number
+  user?: {
+    id?: number
+    name?: string
+    email?: string
+  }
 }
 
 export type RegisterRequest = {

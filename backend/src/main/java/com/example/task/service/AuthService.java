@@ -1,6 +1,6 @@
 package com.example.task.service;
 
-import com.example.task.config.JwtProperties;
+import com.example.task.dto.UserResponse;
 import com.example.task.dto.auth.LoginRequest;
 import com.example.task.dto.auth.LoginResponse;
 import com.example.task.dto.auth.RegisterRequest;
@@ -22,18 +22,15 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
-    private final JwtProperties jwtProperties;
 
     public AuthService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            JwtUtil jwtUtil,
-            JwtProperties jwtProperties
+            JwtUtil jwtUtil
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
-        this.jwtProperties = jwtProperties;
     }
 
     @Transactional
@@ -71,8 +68,11 @@ public class AuthService {
 
         return LoginResponse.builder()
                 .token(token)
-                .tokenType("Bearer")
-                .expiresIn(jwtProperties.getExpirationMillis())
+                .user(UserResponse.builder()
+                        .id(user.getId())
+                        .name(user.getName())
+                        .email(user.getEmail())
+                        .build())
                 .build();
     }
 }

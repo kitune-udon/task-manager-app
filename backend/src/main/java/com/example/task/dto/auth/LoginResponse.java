@@ -1,5 +1,6 @@
 package com.example.task.dto.auth;
 
+import com.example.task.dto.UserResponse;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -10,6 +11,5 @@ import lombok.Getter;
 public class LoginResponse {
 
     private String token;
-    private String tokenType;
-    private long expiresIn;
+    private UserResponse user;
 }

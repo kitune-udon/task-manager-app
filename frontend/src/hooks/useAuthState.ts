@@ -153,6 +153,7 @@ export function useAuthState({ go, onUnauthorized }: Params) {
     try {
       const result = await login({ email: loginEmail.trim(), password: loginPassword })
       const resolvedToken = result.token ?? ''
+      const resolvedUserName = result.user?.name?.trim() || result.user?.email?.trim() || loginEmail.trim()
 
       if (!resolvedToken) {
         setErrorMessage('トークンの取得に失敗しました。')
@@ -160,9 +161,9 @@ export function useAuthState({ go, onUnauthorized }: Params) {
       }
 
       saveAuthToken(resolvedToken)
-      saveUserDisplayName(loginEmail.trim())
+      saveUserDisplayName(resolvedUserName)
       setToken(resolvedToken)
-      setCurrentUserLabel(loginEmail.trim())
+      setCurrentUserLabel(resolvedUserName)
       setLoginFieldErrors({})
       const redirectPath = consumePostLoginRedirectPath()
       go(redirectPath || '/tasks', true)
