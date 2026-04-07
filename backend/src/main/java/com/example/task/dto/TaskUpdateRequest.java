@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -27,7 +27,7 @@ public class TaskUpdateRequest {
     @NotNull(message = "priority is required")
     private Priority priority;
 
-    private LocalDateTime dueDate;
+    private LocalDate dueDate;
 
     private Long assignedUserId;
 }

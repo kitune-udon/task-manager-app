@@ -5,6 +5,7 @@ import com.example.task.entity.TaskStatus;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Getter
@@ -15,7 +16,7 @@ public class TaskResponse {
     private String description;
     private TaskStatus status;
     private Priority priority;
-    private LocalDateTime dueDate;
+    private LocalDate dueDate;
     private Long assignedUserId;
     private String assignedUserName;
     private LocalDateTime createdAt;
