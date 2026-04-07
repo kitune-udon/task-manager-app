@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { apiClient } from './apiClient'
 import { unwrapApiData } from './apiTypes'
 import type { ApiEnvelope } from './apiTypes'
@@ -45,14 +44,4 @@ export async function register(request: RegisterRequest): Promise<RegisterRespon
   return unwrapApiData(response.data)
 }
 
-export function extractApiErrorMessage(error: unknown): string {
-  if (axios.isAxiosError(error)) {
-    const responseData = error.response?.data as
-      | { message?: string; error?: string }
-      | undefined
-
-    return responseData?.message ?? responseData?.error ?? 'リクエストに失敗しました。'
-  }
-
-  return 'リクエストに失敗しました。'
-}
+export { extractApiErrorMessage, extractFieldErrorsFromApiError, hasFieldErrors, resolveUserMessage } from './apiError'

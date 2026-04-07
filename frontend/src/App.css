@@ -296,6 +296,21 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 4px rgba(102, 146, 214, 0.14);
 }
 textarea { resize: vertical; }
+
+.input-error {
+  border-color: #de7d7d;
+  background: #fff8f8;
+}
+.input-error:focus {
+  border-color: #d76565;
+  box-shadow: 0 0 0 4px rgba(215, 101, 101, 0.14);
+}
+.field-error {
+  color: #c54b4b;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .split-actions { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
 
 .status-box {

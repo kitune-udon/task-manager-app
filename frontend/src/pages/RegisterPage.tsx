@@ -6,6 +6,7 @@ type Props = {
   email: string
   password: string
   passwordConfirm: string
+  fieldErrors: Record<string, string>
   errorMessage: string
   successMessage: string
   isSubmitting: boolean
@@ -23,6 +24,7 @@ export function RegisterPage(props: Props) {
     email,
     password,
     passwordConfirm,
+    fieldErrors,
     errorMessage,
     successMessage,
     isSubmitting,
@@ -52,22 +54,46 @@ export function RegisterPage(props: Props) {
         <form className="form-grid auth-form" onSubmit={onSubmit}>
           <label>
             <span>ユーザー名 <em className="required-mark">*</em></span>
-            <input type="text" value={name} onChange={(e) => onNameChange(e.target.value)} />
+            <input
+              className={fieldErrors.name ? 'input-error' : ''}
+              type="text"
+              value={name}
+              onChange={(e) => onNameChange(e.target.value)}
+            />
+            {fieldErrors.name ? <span className="field-error">{fieldErrors.name}</span> : null}
           </label>
 
           <label>
             <span>メールアドレス <em className="required-mark">*</em></span>
-            <input type="email" value={email} onChange={(e) => onEmailChange(e.target.value)} />
+            <input
+              className={fieldErrors.email ? 'input-error' : ''}
+              type="email"
+              value={email}
+              onChange={(e) => onEmailChange(e.target.value)}
+            />
+            {fieldErrors.email ? <span className="field-error">{fieldErrors.email}</span> : null}
           </label>
 
           <label>
             <span>パスワード <em className="required-mark">*</em></span>
-            <input type="password" value={password} onChange={(e) => onPasswordChange(e.target.value)} />
+            <input
+              className={fieldErrors.password ? 'input-error' : ''}
+              type="password"
+              value={password}
+              onChange={(e) => onPasswordChange(e.target.value)}
+            />
+            {fieldErrors.password ? <span className="field-error">{fieldErrors.password}</span> : null}
           </label>
 
           <label>
             <span>パスワード確認 <em className="required-mark">*</em></span>
-            <input type="password" value={passwordConfirm} onChange={(e) => onPasswordConfirmChange(e.target.value)} />
+            <input
+              className={fieldErrors.passwordConfirm ? 'input-error' : ''}
+              type="password"
+              value={passwordConfirm}
+              onChange={(e) => onPasswordConfirmChange(e.target.value)}
+            />
+            {fieldErrors.passwordConfirm ? <span className="field-error">{fieldErrors.passwordConfirm}</span> : null}
           </label>
 
           <button className="primary-button auth-submit-button" disabled={isSubmitting} type="submit">

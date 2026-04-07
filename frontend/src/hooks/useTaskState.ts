@@ -10,7 +10,8 @@ import {
   type TaskPriority,
   type TaskStatus,
 } from '../lib/taskApi'
-import { extractApiErrorMessage } from '../lib/authApi'
+import { extractApiErrorMessage, extractFieldErrorsFromApiError, hasFieldErrors, resolveUserMessage } from '../lib/authApi'
+import type { FieldErrors } from '../lib/apiError'
 import type { ResolvedRoute } from '../app_navigation'
 
 export type TaskFormState = {
@@ -23,6 +24,7 @@ export type TaskFormState = {
 }
 
 export type TaskFormBindings = TaskFormState & {
+  fieldErrors: FieldErrors
   onTitleChange: (value: string) => void
   onDescriptionChange: (value: string) => void
   onStatusChange: (value: TaskStatus) => void
@@ -49,18 +51,51 @@ type Params = {
   setGlobalSuccessMessage: (value: string) => void
 }
 
+function clearFieldError(setFieldErrors: Dispatch<SetStateAction<FieldErrors>>, field: string) {
+  setFieldErrors((current) => {
+    if (!current[field]) {
+      return current
+    }
+
+    const next = { ...current }
+    delete next[field]
+    return next
+  })
+}
+
 function toTaskFormBindings(
   form: TaskFormState,
+  fieldErrors: FieldErrors,
   setForm: Dispatch<SetStateAction<TaskFormState>>,
+  setFieldErrors: Dispatch<SetStateAction<FieldErrors>>,
 ): TaskFormBindings {
   return {
     ...form,
-    onTitleChange: (value) => setForm((current) => ({ ...current, title: value })),
-    onDescriptionChange: (value) => setForm((current) => ({ ...current, description: value })),
-    onStatusChange: (value) => setForm((current) => ({ ...current, status: value })),
-    onPriorityChange: (value) => setForm((current) => ({ ...current, priority: value })),
-    onDueDateChange: (value) => setForm((current) => ({ ...current, dueDate: value })),
-    onAssignedUserIdChange: (value) => setForm((current) => ({ ...current, assignedUserId: value })),
+    fieldErrors,
+    onTitleChange: (value) => {
+      setForm((current) => ({ ...current, title: value }))
+      clearFieldError(setFieldErrors, 'title')
+    },
+    onDescriptionChange: (value) => {
+      setForm((current) => ({ ...current, description: value }))
+      clearFieldError(setFieldErrors, 'description')
+    },
+    onStatusChange: (value) => {
+      setForm((current) => ({ ...current, status: value }))
+      clearFieldError(setFieldErrors, 'status')
+    },
+    onPriorityChange: (value) => {
+      setForm((current) => ({ ...current, priority: value }))
+      clearFieldError(setFieldErrors, 'priority')
+    },
+    onDueDateChange: (value) => {
+      setForm((current) => ({ ...current, dueDate: value }))
+      clearFieldError(setFieldErrors, 'dueDate')
+    },
+    onAssignedUserIdChange: (value) => {
+      setForm((current) => ({ ...current, assignedUserId: value }))
+      clearFieldError(setFieldErrors, 'assignedUserId')
+    },
   }
 }
 
@@ -86,18 +121,23 @@ export function useTaskState({
 
   const [createForm, setCreateForm] = useState<TaskFormState>(defaultTaskForm)
   const [editForm, setEditForm] = useState<TaskFormState>(defaultTaskForm)
+  const [createFieldErrors, setCreateFieldErrors] = useState<FieldErrors>({})
+  const [editFieldErrors, setEditFieldErrors] = useState<FieldErrors>({})
   const [isSubmittingTask, setIsSubmittingTask] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
   const activePath = route.page === 'create' ? '/tasks/new' : '/tasks'
 
-  const validateTaskForm = (title: string, status: string, priority: string, assignedUserId: string) => {
-    if (!title.trim()) return 'タイトルを入力してください。'
-    if (title.trim().length > 100) return 'タイトルは100文字以内で入力してください。'
-    if (!priority.trim()) return '優先度を選択してください。'
-    if (!status.trim()) return 'ステータスを選択してください。'
-    if (assignedUserId && !/^\d+$/.test(assignedUserId)) return '担当者IDは数値で入力してください。'
-    return ''
+  const validateTaskForm = (title: string, status: string, priority: string, assignedUserId: string): FieldErrors => {
+    const next: FieldErrors = {}
+
+    if (!title.trim()) next.title = 'タイトルを入力してください。'
+    else if (title.trim().length > 100) next.title = 'タイトルは100文字以内で入力してください。'
+    if (!priority.trim()) next.priority = '優先度を選択してください。'
+    if (!status.trim()) next.status = 'ステータスを選択してください。'
+    if (assignedUserId && !/^\d+$/.test(assignedUserId)) next.assignedUserId = '担当者IDは数値で入力してください。'
+
+    return next
   }
 
   const loadTasks = async () => {
@@ -108,7 +148,7 @@ export function useTaskState({
       const taskList = await fetchTasks()
       setTasks(taskList)
     } catch (error) {
-      setTaskErrorMessage(extractApiErrorMessage(error))
+      setTaskErrorMessage(resolveUserMessage(error))
     } finally {
       setIsLoadingTasks(false)
     }
@@ -127,7 +167,7 @@ export function useTaskState({
       return task
     } catch (error) {
       setSelectedTask(null)
-      setDetailErrorMessage(extractApiErrorMessage(error))
+      setDetailErrorMessage(resolveUserMessage(error))
       return null
     } finally {
       setIsLoadingDetail(false)
@@ -149,6 +189,7 @@ export function useTaskState({
   const handleShowCreate = () => {
     resetMessages()
     setTaskErrorMessage('')
+    setCreateFieldErrors({})
     setCreateForm(defaultTaskForm)
     go('/tasks/new')
   }
@@ -163,6 +204,7 @@ export function useTaskState({
     if (!selectedTaskId) return
     resetMessages()
     setDetailErrorMessage('')
+    setEditFieldErrors({})
     go(`/tasks/${selectedTaskId}/edit`)
   }
 
@@ -170,15 +212,17 @@ export function useTaskState({
     event.preventDefault()
     resetMessages()
     setTaskErrorMessage('')
+    setCreateFieldErrors({})
 
-    const validationMessage = validateTaskForm(
+    const validationErrors = validateTaskForm(
       createForm.title,
       String(createForm.status),
       String(createForm.priority),
       createForm.assignedUserId,
     )
-    if (validationMessage) {
-      setTaskErrorMessage(validationMessage)
+    if (hasFieldErrors(validationErrors)) {
+      setCreateFieldErrors(validationErrors)
+      setTaskErrorMessage('入力内容を確認してください。')
       return
     }
 
@@ -194,12 +238,17 @@ export function useTaskState({
         teamId: undefined,
       })
       setCreateForm(defaultTaskForm)
+      setCreateFieldErrors({})
       await loadTasks()
       setSelectedTask(createdTask)
       go(`/tasks/${createdTask.id}`)
       setGlobalSuccessMessage('タスクを作成しました。')
     } catch (error) {
-      setTaskErrorMessage(extractApiErrorMessage(error))
+      const apiFieldErrors = extractFieldErrorsFromApiError(error)
+      if (hasFieldErrors(apiFieldErrors)) {
+        setCreateFieldErrors(apiFieldErrors)
+      }
+      setTaskErrorMessage(resolveUserMessage(error))
     } finally {
       setIsSubmittingTask(false)
     }
@@ -209,20 +258,22 @@ export function useTaskState({
     event.preventDefault()
     resetMessages()
     setDetailErrorMessage('')
+    setEditFieldErrors({})
 
     if (!selectedTaskId) {
       setDetailErrorMessage('更新対象のタスクが選択されていません。')
       return
     }
 
-    const validationMessage = validateTaskForm(
+    const validationErrors = validateTaskForm(
       editForm.title,
       String(editForm.status),
       String(editForm.priority),
       editForm.assignedUserId,
     )
-    if (validationMessage) {
-      setDetailErrorMessage(validationMessage)
+    if (hasFieldErrors(validationErrors)) {
+      setEditFieldErrors(validationErrors)
+      setDetailErrorMessage('入力内容を確認してください。')
       return
     }
 
@@ -238,11 +289,16 @@ export function useTaskState({
         teamId: undefined,
       })
       setSelectedTask(updatedTask)
+      setEditFieldErrors({})
       await loadTasks()
       go(`/tasks/${selectedTaskId}`)
       setGlobalSuccessMessage('タスクを更新しました。')
     } catch (error) {
-      setDetailErrorMessage(extractApiErrorMessage(error))
+      const apiFieldErrors = extractFieldErrorsFromApiError(error)
+      if (hasFieldErrors(apiFieldErrors)) {
+        setEditFieldErrors(apiFieldErrors)
+      }
+      setDetailErrorMessage(resolveUserMessage(error))
     } finally {
       setIsSubmittingTask(false)
     }
@@ -262,7 +318,7 @@ export function useTaskState({
       go('/tasks')
       setGlobalSuccessMessage('タスクを削除しました。')
     } catch (error) {
-      setDetailErrorMessage(extractApiErrorMessage(error))
+      setDetailErrorMessage(resolveUserMessage(error))
     } finally {
       setIsDeleting(false)
     }
@@ -278,8 +334,14 @@ export function useTaskState({
     [priorityFilter, statusFilter, tasks],
   )
 
-  const createTaskForm = useMemo(() => toTaskFormBindings(createForm, setCreateForm), [createForm])
-  const editTaskForm = useMemo(() => toTaskFormBindings(editForm, setEditForm), [editForm])
+  const createTaskForm = useMemo(
+    () => toTaskFormBindings(createForm, createFieldErrors, setCreateForm, setCreateFieldErrors),
+    [createFieldErrors, createForm],
+  )
+  const editTaskForm = useMemo(
+    () => toTaskFormBindings(editForm, editFieldErrors, setEditForm, setEditFieldErrors),
+    [editFieldErrors, editForm],
+  )
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -297,6 +359,7 @@ export function useTaskState({
 
   useEffect(() => {
     if (route.page === 'edit' && selectedTask) {
+      setEditFieldErrors({})
       setEditForm({
         title: selectedTask.title ?? '',
         description: selectedTask.description ?? '',
@@ -319,6 +382,8 @@ export function useTaskState({
     setCommentDraft('')
     setCreateForm(defaultTaskForm)
     setEditForm(defaultTaskForm)
+    setCreateFieldErrors({})
+    setEditFieldErrors({})
   }
 
   return {

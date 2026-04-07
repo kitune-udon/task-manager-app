@@ -6,6 +6,8 @@ import com.example.task.dto.auth.LoginResponse;
 import com.example.task.dto.auth.RegisterRequest;
 import com.example.task.dto.auth.RegisterResponse;
 import com.example.task.entity.User;
+import com.example.task.exception.ConflictException;
+import com.example.task.exception.ErrorCode;
 import com.example.task.repository.UserRepository;
 import com.example.task.security.CustomUserDetails;
 import com.example.task.security.JwtUtil;
@@ -37,7 +39,7 @@ public class AuthService {
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email is already registered.");
+            throw new ConflictException(ErrorCode.USR_001);
         }
 
         User user = User.builder()

@@ -1,5 +1,7 @@
 package com.example.task.config;
 
+import com.example.task.filter.RequestIdFilter;
+import com.example.task.security.CustomAccessDeniedHandler;
 import com.example.task.security.CustomAuthenticationEntryPoint;
 import com.example.task.security.JwtAuthenticationFilter;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -23,13 +25,19 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
+    private final CustomAccessDeniedHandler accessDeniedHandler;
+    private final RequestIdFilter requestIdFilter;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
-            CustomAuthenticationEntryPoint authenticationEntryPoint
+            CustomAuthenticationEntryPoint authenticationEntryPoint,
+            CustomAccessDeniedHandler accessDeniedHandler,
+            RequestIdFilter requestIdFilter
     ) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.authenticationEntryPoint = authenticationEntryPoint;
+        this.accessDeniedHandler = accessDeniedHandler;
+        this.requestIdFilter = requestIdFilter;
     }
 
     @Bean
@@ -39,13 +47,17 @@ public class SecurityConfig {
                 .cors(cors -> {})
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler)
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(requestIdFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

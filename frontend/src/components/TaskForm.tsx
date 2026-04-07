@@ -29,49 +29,79 @@ export function TaskForm({
     <form className="form-grid create-form" onSubmit={onSubmit}>
       <label>
         <span>タイトル</span>
-        <input type="text" value={form.title} onChange={(e) => form.onTitleChange(e.target.value)} />
+        <input
+          className={form.fieldErrors.title ? 'input-error' : ''}
+          type="text"
+          value={form.title}
+          onChange={(e) => form.onTitleChange(e.target.value)}
+        />
+        {form.fieldErrors.title ? <span className="field-error">{form.fieldErrors.title}</span> : null}
       </label>
 
       <label className="form-column-full">
         <span>説明</span>
-        <textarea value={form.description} onChange={(e) => form.onDescriptionChange(e.target.value)} rows={4} />
+        <textarea
+          className={form.fieldErrors.description ? 'input-error' : ''}
+          value={form.description}
+          onChange={(e) => form.onDescriptionChange(e.target.value)}
+          rows={4}
+        />
+        {form.fieldErrors.description ? <span className="field-error">{form.fieldErrors.description}</span> : null}
       </label>
 
       <label>
         <span>ステータス</span>
-        <select value={form.status} onChange={(e) => form.onStatusChange(e.target.value)}>
+        <select
+          className={form.fieldErrors.status ? 'input-error' : ''}
+          value={form.status}
+          onChange={(e) => form.onStatusChange(e.target.value)}
+        >
           {statusOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
         </select>
+        {form.fieldErrors.status ? <span className="field-error">{form.fieldErrors.status}</span> : null}
       </label>
 
       <label>
         <span>優先度</span>
-        <select value={form.priority} onChange={(e) => form.onPriorityChange(e.target.value)}>
+        <select
+          className={form.fieldErrors.priority ? 'input-error' : ''}
+          value={form.priority}
+          onChange={(e) => form.onPriorityChange(e.target.value)}
+        >
           {priorityOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
         </select>
+        {form.fieldErrors.priority ? <span className="field-error">{form.fieldErrors.priority}</span> : null}
       </label>
 
       <label>
         <span>期限</span>
-        <input type="date" value={form.dueDate} onChange={(e) => form.onDueDateChange(e.target.value)} />
+        <input
+          className={form.fieldErrors.dueDate ? 'input-error' : ''}
+          type="date"
+          value={form.dueDate}
+          onChange={(e) => form.onDueDateChange(e.target.value)}
+        />
+        {form.fieldErrors.dueDate ? <span className="field-error">{form.fieldErrors.dueDate}</span> : null}
       </label>
 
       <label>
         <span>担当者ID（任意）</span>
         <input
+          className={form.fieldErrors.assignedUserId ? 'input-error' : ''}
           type="text"
           value={form.assignedUserId}
           onChange={(e) => form.onAssignedUserIdChange(e.target.value)}
           placeholder="例: 1"
         />
+        {form.fieldErrors.assignedUserId ? <span className="field-error">{form.fieldErrors.assignedUserId}</span> : null}
       </label>
 
       <div className="form-actions form-column-full split-actions">

@@ -7,6 +7,7 @@ import com.example.task.entity.Priority;
 import com.example.task.entity.Task;
 import com.example.task.entity.TaskStatus;
 import com.example.task.entity.User;
+import com.example.task.exception.ErrorCode;
 import com.example.task.exception.ResourceNotFoundException;
 import com.example.task.repository.TaskRepository;
 import com.example.task.repository.UserRepository;
@@ -79,7 +80,10 @@ public class TaskService {
 
     private Task getTaskEntity(Long taskId) {
         return taskRepository.findWithAssignedUserById(taskId)
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found. taskId=" + taskId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.RES_TASK_404,
+                        "タスクが存在しません"
+                ));
     }
 
     private User resolveAssignedUser(Long assignedUserId) {
@@ -88,7 +92,10 @@ public class TaskService {
         }
 
         return userRepository.findById(assignedUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("Assigned user not found. userId=" + assignedUserId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.USR_002,
+                        "ユーザーが存在しません"
+                ));
     }
 
     private String toKeywordPattern(String keyword) {

@@ -1,9 +1,12 @@
 package com.example.task.security;
 
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -17,10 +20,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
+    private final CustomAuthenticationEntryPoint authenticationEntryPoint;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil, CustomUserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(JwtUtil jwtUtil,
+                                   CustomUserDetailsService userDetailsService,
+                                   CustomAuthenticationEntryPoint authenticationEntryPoint) {
         this.jwtUtil = jwtUtil;
         this.userDetailsService = userDetailsService;
+        this.authenticationEntryPoint = authenticationEntryPoint;
     }
 
     @Override
@@ -42,8 +49,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             username = jwtUtil.extractUsername(jwt);
-        } catch (Exception ex) {
-            filterChain.doFilter(request, response);
+        } catch (ExpiredJwtException ex) {
+            request.setAttribute("authErrorCode", "AUTH-004");
+            authenticationEntryPoint.commence(request, response,
+                    new InsufficientAuthenticationException("Token expired", ex));
+            return;
+        } catch (JwtException | IllegalArgumentException ex) {
+            request.setAttribute("authErrorCode", "AUTH-003");
+            authenticationEntryPoint.commence(request, response,
+                    new InsufficientAuthenticationException("Invalid token", ex));
             return;
         }
 

@@ -1,6 +1,7 @@
 package com.example.task.security;
 
 import com.example.task.dto.common.ErrorResponse;
+import com.example.task.exception.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -11,7 +12,7 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Component
 public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
@@ -28,12 +29,25 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
             HttpServletResponse response,
             AuthenticationException authException
     ) throws IOException {
+        String errorCode = (String) request.getAttribute("authErrorCode");
+        if (errorCode == null) {
+            errorCode = ErrorCode.AUTH_001.getCode();
+        }
+
+        String message = switch (errorCode) {
+            case "AUTH-003" -> ErrorCode.AUTH_003.getDefaultMessage();
+            case "AUTH-004" -> ErrorCode.AUTH_004.getDefaultMessage();
+            default -> ErrorCode.AUTH_001.getDefaultMessage();
+        };
+
         ErrorResponse body = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
+                .timestamp(OffsetDateTime.now())
                 .status(HttpStatus.UNAUTHORIZED.value())
-                .error(HttpStatus.UNAUTHORIZED.getReasonPhrase())
-                .message("Authentication is required to access this resource.")
+                .errorCode(errorCode)
+                .message(message)
+                .details(null)
                 .path(request.getRequestURI())
+                .requestId((String) request.getAttribute("requestId"))
                 .build();
 
         response.setStatus(HttpStatus.UNAUTHORIZED.value());

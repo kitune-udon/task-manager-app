@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { login, register, extractApiErrorMessage } from '../lib/authApi'
+import {
+  extractApiErrorMessage,
+  resolveUserMessage,
+  extractFieldErrorsFromApiError,
+  hasFieldErrors,
+  login,
+  register,
+} from '../lib/authApi'
 import { UNAUTHORIZED_EVENT } from '../lib/apiClient'
+import type { FieldErrors } from '../lib/apiError'
 import {
   clearAuthToken,
   clearPostLoginRedirectPath,
@@ -35,6 +43,8 @@ export function useAuthState({ go, onUnauthorized }: Params) {
   const [registerPassword, setRegisterPassword] = useState('')
   const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('')
 
+  const [loginFieldErrors, setLoginFieldErrors] = useState<FieldErrors>({})
+  const [registerFieldErrors, setRegisterFieldErrors] = useState<FieldErrors>({})
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -46,8 +56,34 @@ export function useAuthState({ go, onUnauthorized }: Params) {
     setSuccessMessage('')
   }
 
+  const clearLoginFieldError = (field: string) => {
+    setLoginFieldErrors((current) => {
+      if (!current[field]) {
+        return current
+      }
+
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
+
+  const clearRegisterFieldError = (field: string) => {
+    setRegisterFieldErrors((current) => {
+      if (!current[field]) {
+        return current
+      }
+
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
+
   const showLogin = () => {
     resetMessages()
+    setLoginFieldErrors({})
+    setRegisterFieldErrors({})
     setMode('login')
     if (window.location.pathname !== '/login') {
       go('/login', true)
@@ -56,32 +92,61 @@ export function useAuthState({ go, onUnauthorized }: Params) {
 
   const showRegister = () => {
     resetMessages()
+    setLoginFieldErrors({})
+    setRegisterFieldErrors({})
     setMode('register')
     if (window.location.pathname !== '/signup') {
       go('/signup', true)
     }
   }
 
-  const validateRegisterForm = () => {
-    if (!registerName.trim()) return '名前を入力してください。'
-    if (!registerEmail.trim()) return 'メールアドレスを入力してください。'
-    if (!/^\S+@\S+\.\S+$/.test(registerEmail)) return 'メールアドレスの形式が不正です。'
-    if (registerPassword.length < 8) return 'パスワードは8文字以上で入力してください。'
-    if (registerPassword !== registerPasswordConfirm) return '確認用パスワードが一致しません。'
-    return ''
+  const validateLoginForm = (): FieldErrors => {
+    const next: FieldErrors = {}
+
+    if (!loginEmail.trim()) {
+      next.email = 'メールアドレスを入力してください。'
+    }
+
+    if (!loginPassword.trim()) {
+      next.password = 'パスワードを入力してください。'
+    }
+
+    return next
+  }
+
+  const validateRegisterForm = (): FieldErrors => {
+    const next: FieldErrors = {}
+
+    if (!registerName.trim()) {
+      next.name = '名前を入力してください。'
+    }
+
+    if (!registerEmail.trim()) {
+      next.email = 'メールアドレスを入力してください。'
+    } else if (!/^\S+@\S+\.\S+$/.test(registerEmail)) {
+      next.email = 'メールアドレスの形式が不正です。'
+    }
+
+    if (registerPassword.length < 8) {
+      next.password = 'パスワードは8文字以上で入力してください。'
+    }
+
+    if (registerPassword !== registerPasswordConfirm) {
+      next.passwordConfirm = '確認用パスワードが一致しません。'
+    }
+
+    return next
   }
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     resetMessages()
+    setLoginFieldErrors({})
 
-    if (!loginEmail.trim()) {
-      setErrorMessage('メールアドレスを入力してください。')
-      return
-    }
-
-    if (!loginPassword.trim()) {
-      setErrorMessage('パスワードを入力してください。')
+    const localFieldErrors = validateLoginForm()
+    if (hasFieldErrors(localFieldErrors)) {
+      setLoginFieldErrors(localFieldErrors)
+      setErrorMessage('入力内容を確認してください。')
       return
     }
 
@@ -99,11 +164,15 @@ export function useAuthState({ go, onUnauthorized }: Params) {
       saveUserDisplayName(loginEmail.trim())
       setToken(resolvedToken)
       setCurrentUserLabel(loginEmail.trim())
+      setLoginFieldErrors({})
       const redirectPath = consumePostLoginRedirectPath()
       go(redirectPath || '/tasks', true)
-      setSuccessMessage('ログインに成功しました。')
     } catch (error) {
-      setErrorMessage(extractApiErrorMessage(error))
+      const apiFieldErrors = extractFieldErrorsFromApiError(error)
+      if (hasFieldErrors(apiFieldErrors)) {
+        setLoginFieldErrors(apiFieldErrors)
+      }
+      setErrorMessage(resolveUserMessage(error))
     } finally {
       setIsSubmitting(false)
     }
@@ -112,10 +181,12 @@ export function useAuthState({ go, onUnauthorized }: Params) {
   const handleRegister = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     resetMessages()
+    setRegisterFieldErrors({})
 
-    const validationMessage = validateRegisterForm()
-    if (validationMessage) {
-      setErrorMessage(validationMessage)
+    const localFieldErrors = validateRegisterForm()
+    if (hasFieldErrors(localFieldErrors)) {
+      setRegisterFieldErrors(localFieldErrors)
+      setErrorMessage('入力内容を確認してください。')
       return
     }
 
@@ -131,6 +202,8 @@ export function useAuthState({ go, onUnauthorized }: Params) {
       setSuccessMessage(`登録に成功しました。ログインしてください。(${registeredEmail})`)
       setMode('login')
       go('/login', true)
+      setLoginFieldErrors({})
+      setRegisterFieldErrors({})
       setLoginEmail(registeredEmail)
       setLoginPassword('')
       saveUserDisplayName(result.name ?? registerName.trim() ?? registeredEmail)
@@ -139,7 +212,11 @@ export function useAuthState({ go, onUnauthorized }: Params) {
       setRegisterPassword('')
       setRegisterPasswordConfirm('')
     } catch (error) {
-      setErrorMessage(extractApiErrorMessage(error))
+      const apiFieldErrors = extractFieldErrorsFromApiError(error)
+      if (hasFieldErrors(apiFieldErrors)) {
+        setRegisterFieldErrors(apiFieldErrors)
+      }
+      setErrorMessage(resolveUserMessage(error))
     } finally {
       setIsSubmitting(false)
     }
@@ -152,6 +229,8 @@ export function useAuthState({ go, onUnauthorized }: Params) {
     setToken('')
     setCurrentUserLabel('')
     setLoginPassword('')
+    setLoginFieldErrors({})
+    setRegisterFieldErrors({})
     resetMessages()
     go('/login', true)
   }
@@ -166,6 +245,8 @@ export function useAuthState({ go, onUnauthorized }: Params) {
       setToken('')
       setCurrentUserLabel('')
       setLoginPassword('')
+      setLoginFieldErrors({})
+      setRegisterFieldErrors({})
       setErrorMessage('認証期限が切れたため、再度ログインしてください。')
       setSuccessMessage('')
       setMode('login')
@@ -220,8 +301,15 @@ export function useAuthState({ go, onUnauthorized }: Params) {
     loginForm: {
       email: loginEmail,
       password: loginPassword,
-      onEmailChange: setLoginEmail,
-      onPasswordChange: setLoginPassword,
+      fieldErrors: loginFieldErrors,
+      onEmailChange: (value: string) => {
+        setLoginEmail(value)
+        clearLoginFieldError('email')
+      },
+      onPasswordChange: (value: string) => {
+        setLoginPassword(value)
+        clearLoginFieldError('password')
+      },
       onSubmit: handleLogin,
       onShowRegister: showRegister,
     },
@@ -230,10 +318,23 @@ export function useAuthState({ go, onUnauthorized }: Params) {
       email: registerEmail,
       password: registerPassword,
       passwordConfirm: registerPasswordConfirm,
-      onNameChange: setRegisterName,
-      onEmailChange: setRegisterEmail,
-      onPasswordChange: setRegisterPassword,
-      onPasswordConfirmChange: setRegisterPasswordConfirm,
+      fieldErrors: registerFieldErrors,
+      onNameChange: (value: string) => {
+        setRegisterName(value)
+        clearRegisterFieldError('name')
+      },
+      onEmailChange: (value: string) => {
+        setRegisterEmail(value)
+        clearRegisterFieldError('email')
+      },
+      onPasswordChange: (value: string) => {
+        setRegisterPassword(value)
+        clearRegisterFieldError('password')
+      },
+      onPasswordConfirmChange: (value: string) => {
+        setRegisterPasswordConfirm(value)
+        clearRegisterFieldError('passwordConfirm')
+      },
       onSubmit: handleRegister,
       onShowLogin: showLogin,
     },

@@ -11,6 +11,7 @@ type Props = {
   loginForm: {
     email: string
     password: string
+    fieldErrors: Record<string, string>
     onEmailChange: (value: string) => void
     onPasswordChange: (value: string) => void
     onSubmit: (event: FormEvent<HTMLFormElement>) => void
@@ -21,6 +22,7 @@ type Props = {
     email: string
     password: string
     passwordConfirm: string
+    fieldErrors: Record<string, string>
     onNameChange: (value: string) => void
     onEmailChange: (value: string) => void
     onPasswordChange: (value: string) => void
@@ -43,6 +45,7 @@ export function UnauthenticatedAppView({
       <LoginPage
         email={loginForm.email}
         password={loginForm.password}
+        fieldErrors={loginForm.fieldErrors}
         errorMessage={errorMessage}
         successMessage={successMessage}
         isSubmitting={isSubmitting}
@@ -60,6 +63,7 @@ export function UnauthenticatedAppView({
       email={registerForm.email}
       password={registerForm.password}
       passwordConfirm={registerForm.passwordConfirm}
+      fieldErrors={registerForm.fieldErrors}
       errorMessage={errorMessage}
       successMessage={successMessage}
       isSubmitting={isSubmitting}

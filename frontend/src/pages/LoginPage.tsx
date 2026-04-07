@@ -4,6 +4,7 @@ import { AuthShell } from '../components/AuthShell'
 type Props = {
   email: string
   password: string
+  fieldErrors: Record<string, string>
   errorMessage: string
   successMessage: string
   isSubmitting: boolean
@@ -17,6 +18,7 @@ export function LoginPage(props: Props) {
   const {
     email,
     password,
+    fieldErrors,
     errorMessage,
     successMessage,
     isSubmitting,
@@ -40,12 +42,24 @@ export function LoginPage(props: Props) {
         <form className="form-grid auth-form" onSubmit={onSubmit}>
           <label>
             <span>メールアドレス</span>
-            <input type="email" value={email} onChange={(e) => onEmailChange(e.target.value)} />
+            <input
+              className={fieldErrors.email ? 'input-error' : ''}
+              type="email"
+              value={email}
+              onChange={(e) => onEmailChange(e.target.value)}
+            />
+            {fieldErrors.email ? <span className="field-error">{fieldErrors.email}</span> : null}
           </label>
 
           <label>
             <span>パスワード</span>
-            <input type="password" value={password} onChange={(e) => onPasswordChange(e.target.value)} />
+            <input
+              className={fieldErrors.password ? 'input-error' : ''}
+              type="password"
+              value={password}
+              onChange={(e) => onPasswordChange(e.target.value)}
+            />
+            {fieldErrors.password ? <span className="field-error">{fieldErrors.password}</span> : null}
           </label>
 
           <button className="primary-button auth-submit-button" disabled={isSubmitting} type="submit">

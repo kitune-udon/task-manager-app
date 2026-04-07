@@ -1,4 +1,4 @@
-import type { TaskItem, TaskPriority, TaskStatus } from '../lib/taskApi'
+import type { TaskItem } from '../lib/taskApi'
 import { TaskShell } from '../components/TaskShell'
 import { formatDate } from '../utils/format'
 
