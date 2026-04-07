@@ -1,5 +1,8 @@
 package com.example.task.exception;
 
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import com.example.task.dto.TaskCreateRequest;
+import com.example.task.dto.TaskUpdateRequest;
 import com.example.task.dto.common.ErrorDetail;
 import com.example.task.dto.common.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -33,10 +37,12 @@ public class GlobalExceptionHandler {
                         .build())
                 .toList();
 
+        ErrorCode errorCode = resolveValidationErrorCode(ex.getBindingResult().getTarget(), details);
+
         return build(
-                ErrorCode.VAL_INPUT_001.getHttpStatus(),
-                ErrorCode.VAL_INPUT_001.getCode(),
-                ErrorCode.VAL_INPUT_001.getDefaultMessage(),
+                errorCode.getHttpStatus(),
+                errorCode.getCode(),
+                errorCode.getDefaultMessage(),
                 details,
                 request
         );
@@ -117,11 +123,13 @@ public class GlobalExceptionHandler {
             HttpMessageNotReadableException ex,
             HttpServletRequest request
     ) {
+        ValidationErrorResolution resolution = resolveNotReadableValidation(ex, request);
+
         return build(
-                ErrorCode.VAL_TASK_003.getHttpStatus(),
-                ErrorCode.VAL_TASK_003.getCode(),
-                ErrorCode.VAL_INPUT_001.getDefaultMessage(),
-                null,
+                resolution.errorCode().getHttpStatus(),
+                resolution.errorCode().getCode(),
+                resolution.errorCode().getDefaultMessage(),
+                resolution.details(),
                 request
         );
     }
@@ -157,5 +165,81 @@ public class GlobalExceptionHandler {
                 .requestId((String) request.getAttribute("requestId"))
                 .build();
         return ResponseEntity.status(status).body(body);
+    }
+
+    private ErrorCode resolveValidationErrorCode(Object target, List<ErrorDetail> details) {
+        if (target instanceof TaskCreateRequest || target instanceof TaskUpdateRequest) {
+            if (hasField(details, "title")) {
+                return ErrorCode.VAL_TASK_001;
+            }
+            if (hasField(details, "status")) {
+                return ErrorCode.VAL_TASK_002;
+            }
+            if (hasField(details, "dueDate")) {
+                return ErrorCode.VAL_TASK_003;
+            }
+        }
+
+        return ErrorCode.VAL_INPUT_001;
+    }
+
+    private ValidationErrorResolution resolveNotReadableValidation(
+            HttpMessageNotReadableException ex,
+            HttpServletRequest request
+    ) {
+        if (!isTaskRequest(request)) {
+            return new ValidationErrorResolution(ErrorCode.VAL_INPUT_001, null);
+        }
+
+        Throwable cause = ex.getMostSpecificCause();
+        if (cause instanceof InvalidFormatException invalidFormatException) {
+            String fieldName = invalidFormatException.getPath()
+                    .stream()
+                    .map(reference -> reference.getFieldName())
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse(null);
+
+            if ("status".equals(fieldName)) {
+                return new ValidationErrorResolution(
+                        ErrorCode.VAL_TASK_002,
+                        List.of(detail("status", "ステータスはTODO、DOING、DONEのいずれかを指定してください"))
+                );
+            }
+
+            if ("dueDate".equals(fieldName)) {
+                return new ValidationErrorResolution(
+                        ErrorCode.VAL_TASK_003,
+                        List.of(detail("dueDate", "期限はyyyy-MM-dd形式で入力してください"))
+                );
+            }
+
+            if ("priority".equals(fieldName)) {
+                return new ValidationErrorResolution(
+                        ErrorCode.VAL_INPUT_001,
+                        List.of(detail("priority", "優先度はLOW、MEDIUM、HIGHのいずれかを指定してください"))
+                );
+            }
+        }
+
+        return new ValidationErrorResolution(ErrorCode.VAL_INPUT_001, null);
+    }
+
+    private boolean isTaskRequest(HttpServletRequest request) {
+        return request.getRequestURI() != null && request.getRequestURI().startsWith("/api/tasks");
+    }
+
+    private boolean hasField(List<ErrorDetail> details, String fieldName) {
+        return details.stream().anyMatch(detail -> fieldName.equals(detail.getField()));
+    }
+
+    private ErrorDetail detail(String field, String message) {
+        return ErrorDetail.builder()
+                .field(field)
+                .message(message)
+                .build();
+    }
+
+    private record ValidationErrorResolution(ErrorCode errorCode, List<ErrorDetail> details) {
     }
 }

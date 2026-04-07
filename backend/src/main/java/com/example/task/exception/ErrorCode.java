@@ -14,7 +14,9 @@ public enum ErrorCode {
     AUTH_005("AUTH-005", HttpStatus.FORBIDDEN, "操作権限がありません"),
 
     VAL_INPUT_001("VAL-INPUT-001", HttpStatus.BAD_REQUEST, "入力内容に誤りがあります"),
-    VAL_TASK_003("VAL-TASK-003", HttpStatus.BAD_REQUEST, "期限の形式が不正です"),
+    VAL_TASK_001("VAL-TASK-001", HttpStatus.BAD_REQUEST, "入力内容に誤りがあります"),
+    VAL_TASK_002("VAL-TASK-002", HttpStatus.BAD_REQUEST, "入力内容に誤りがあります"),
+    VAL_TASK_003("VAL-TASK-003", HttpStatus.BAD_REQUEST, "入力内容に誤りがあります"),
 
     USR_001("USR-001", HttpStatus.CONFLICT, "メールアドレスは既に登録されています"),
     USR_002("USR-002", HttpStatus.NOT_FOUND, "ユーザーが存在しません"),

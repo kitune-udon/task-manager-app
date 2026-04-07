@@ -14,17 +14,17 @@ import java.time.LocalDate;
 @Setter
 public class TaskCreateRequest {
 
-    @NotBlank(message = "title is required")
-    @Size(max = 200, message = "title must be 200 characters or less")
+    @NotBlank(message = "タイトルを入力してください")
+    @Size(max = 100, message = "タイトルは100文字以内で入力してください")
     private String title;
 
-    @Size(max = 5000, message = "description must be 5000 characters or less")
+    @Size(max = 5000, message = "説明は5000文字以内で入力してください")
     private String description;
 
-    @NotNull(message = "status is required")
+    @NotNull(message = "ステータスを選択してください")
     private TaskStatus status;
 
-    @NotNull(message = "priority is required")
+    @NotNull(message = "優先度を選択してください")
     private Priority priority;
 
     private LocalDate dueDate;
