@@ -401,6 +401,9 @@ th { color: var(--text-subtle); font-size: 0.93rem; }
   grid-template-columns: minmax(0, 2.1fr) minmax(300px, 0.9fr);
   gap: 28px;
 }
+.task-detail-layout-single {
+  grid-template-columns: minmax(0, 1fr);
+}
 .task-detail-main-card, .task-side-card {
   border: 1px solid var(--line);
   border-radius: 26px;

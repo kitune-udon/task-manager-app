@@ -71,9 +71,6 @@ export function LoginPage(props: Props) {
           <button className="text-link-button" onClick={onShowRegister} type="button">
             新規登録
           </button>
-          <button className="text-link-button" type="button">
-            パスワードを忘れた場合
-          </button>
         </div>
       </section>
     </AuthShell>

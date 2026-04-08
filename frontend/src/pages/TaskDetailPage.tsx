@@ -25,7 +25,7 @@ export function TaskDetailPage(props: Props) {
   return (
     <TaskShell
       title="タスク詳細"
-      description="タスクの内容、コメント、添付ファイルを確認します"
+      description="タスクの内容を確認できます。"
       activePath={props.activePath}
       onNavigate={props.onNavigate}
       onLogout={props.onLogout}
@@ -47,7 +47,7 @@ export function TaskDetailPage(props: Props) {
         {props.isLoadingDetail ? <p className="empty-message">タスクを読み込み中です...</p> : !selectedTask ? (
           <p className="empty-message">タスクが見つかりません。</p>
         ) : (
-          <div className="task-detail-layout">
+          <div className="task-detail-layout task-detail-layout-single">
             <section className="task-detail-main-card">
               <h2 className="task-detail-title">{selectedTask.title}</h2>
               <div className="task-detail-meta-grid">
@@ -64,27 +64,6 @@ export function TaskDetailPage(props: Props) {
                 <div className="task-detail-description-box">{selectedTask.description ?? '-'}</div>
               </div>
             </section>
-
-            <aside className="task-detail-side-column">
-              <section className="task-side-card">
-                <h3>コメント</h3>
-                <div className="comment-item">
-                  <p className="comment-author">{selectedTask.createdByName ?? props.currentUserLabel ?? 'ログインユーザー'}</p>
-                  <p className="comment-text">{selectedTask.description ? `${selectedTask.description.slice(0, 40)}${selectedTask.description.length > 40 ? '…' : ''}` : 'コメントはまだありません。'}</p>
-                </div>
-                <textarea className="comment-input" value={props.commentDraft} onChange={(e) => props.onCommentDraftChange(e.target.value)} placeholder="コメントを入力" rows={2} />
-                <button className="primary-button side-card-button" type="button">コメント投稿</button>
-              </section>
-
-              <section className="task-side-card">
-                <h3>添付ファイル</h3>
-                <div className="file-item">
-                  <span>{`task-${selectedTask.id}.xlsx`}</span>
-                  <button className="link-button" type="button">DL</button>
-                </div>
-                <button className="secondary-button side-card-button" type="button">ファイルを添付</button>
-              </section>
-            </aside>
           </div>
         )}
       </section>

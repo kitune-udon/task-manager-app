@@ -1,7 +1,19 @@
 import axios from 'axios'
 import { clearAuthToken, getAuthToken } from './authStorage'
 
-export const API_BASE_URL = 'http://localhost:8080'
+const DEFAULT_API_BASE_URL = 'http://localhost:8080'
+
+function resolveApiBaseUrl() {
+  const configuredValue = import.meta.env.VITE_API_BASE_URL?.trim()
+
+  if (!configuredValue) {
+    return DEFAULT_API_BASE_URL
+  }
+
+  return configuredValue.endsWith('/') ? configuredValue.slice(0, -1) : configuredValue
+}
+
+export const API_BASE_URL = resolveApiBaseUrl()
 export const UNAUTHORIZED_EVENT = 'app:unauthorized'
 
 function isAuthApiRequest(url: string | undefined): boolean {
