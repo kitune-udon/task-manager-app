@@ -228,7 +228,7 @@ export function useTaskState({
 
     setIsSubmittingTask(true)
     try {
-      const createdTask = await createTask({
+      await createTask({
         title: createForm.title.trim(),
         description: createForm.description.trim() || undefined,
         status: createForm.status,
@@ -240,8 +240,8 @@ export function useTaskState({
       setCreateForm(defaultTaskForm)
       setCreateFieldErrors({})
       await loadTasks()
-      setSelectedTask(createdTask)
-      go(`/tasks/${createdTask.id}`)
+      setSelectedTask(null)
+      go('/tasks')
       setGlobalSuccessMessage('タスクを作成しました。')
     } catch (error) {
       const apiFieldErrors = extractFieldErrorsFromApiError(error)
