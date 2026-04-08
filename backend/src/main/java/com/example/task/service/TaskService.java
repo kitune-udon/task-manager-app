@@ -9,6 +9,7 @@ import com.example.task.entity.Priority;
 import com.example.task.entity.Task;
 import com.example.task.entity.TaskStatus;
 import com.example.task.entity.User;
+import com.example.task.exception.BusinessException;
 import com.example.task.exception.ErrorCode;
 import com.example.task.exception.ResourceNotFoundException;
 import com.example.task.repository.TaskRepository;
@@ -55,9 +56,10 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public List<TaskSummaryResponse> getTasks(TaskStatus status, Priority priority, Long assignedUserId, String keyword) {
+        Long currentUserId = currentUserProvider.getCurrentUserId();
         String keywordPattern = toKeywordPattern(keyword);
 
-        return taskRepository.search(status, priority, assignedUserId, keywordPattern)
+        return taskRepository.searchAccessible(currentUserId, status, priority, assignedUserId, keywordPattern)
                 .stream()
                 .map(this::toSummaryResponse)
                 .toList();
@@ -65,12 +67,17 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public TaskResponse getTask(Long taskId) {
-        return toDetailResponse(getTaskEntity(taskId));
+        Long currentUserId = currentUserProvider.getCurrentUserId();
+        Task task = getTaskEntity(taskId);
+        authorizeTaskView(task, currentUserId);
+        return toDetailResponse(task);
     }
 
     @Transactional
     public TaskResponse updateTask(Long taskId, TaskUpdateRequest request) {
+        Long currentUserId = currentUserProvider.getCurrentUserId();
         Task task = getTaskEntity(taskId);
+        authorizeTaskUpdate(task, currentUserId);
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
         task.setStatus(request.getStatus());
@@ -84,7 +91,9 @@ public class TaskService {
 
     @Transactional
     public void deleteTask(Long taskId) {
+        Long currentUserId = currentUserProvider.getCurrentUserId();
         Task task = getTaskEntity(taskId);
+        authorizeTaskDelete(task, currentUserId);
         taskRepository.delete(task);
     }
 
@@ -116,6 +125,52 @@ public class TaskService {
                         ErrorCode.USR_002,
                         "ユーザーが存在しません"
                 ));
+    }
+
+    private void authorizeTaskView(Task task, Long currentUserId) {
+        if (canViewTask(task, currentUserId)) {
+            return;
+        }
+
+        throw new BusinessException(ErrorCode.AUTH_005, "対象タスクの参照権限がありません");
+    }
+
+    private void authorizeTaskUpdate(Task task, Long currentUserId) {
+        if (canUpdateTask(task, currentUserId)) {
+            return;
+        }
+
+        throw new BusinessException(ErrorCode.PERM_TASK_403_UPD);
+    }
+
+    private void authorizeTaskDelete(Task task, Long currentUserId) {
+        if (canDeleteTask(task, currentUserId)) {
+            return;
+        }
+
+        throw new BusinessException(ErrorCode.PERM_TASK_403_DEL);
+    }
+
+    private boolean canViewTask(Task task, Long currentUserId) {
+        return isTaskCreator(task, currentUserId) || isTaskAssignee(task, currentUserId);
+    }
+
+    private boolean canUpdateTask(Task task, Long currentUserId) {
+        return canViewTask(task, currentUserId);
+    }
+
+    private boolean canDeleteTask(Task task, Long currentUserId) {
+        return isTaskCreator(task, currentUserId);
+    }
+
+    private boolean isTaskCreator(Task task, Long currentUserId) {
+        User createdBy = task.getCreatedBy();
+        return createdBy != null && currentUserId.equals(createdBy.getId());
+    }
+
+    private boolean isTaskAssignee(Task task, Long currentUserId) {
+        User assignedUser = task.getAssignedUser();
+        return assignedUser != null && currentUserId.equals(assignedUser.getId());
     }
 
     private String toKeywordPattern(String keyword) {

@@ -17,13 +17,16 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     @Query("""
             select t
             from Task t
-            where (:status is null or t.status = :status)
+            where (t.createdBy.id = :currentUserId
+                   or (t.assignedUser is not null and t.assignedUser.id = :currentUserId))
+              and (:status is null or t.status = :status)
               and (:priority is null or t.priority = :priority)
-              and (:assignedUserId is null or t.assignedUser.id = :assignedUserId)
+              and (:assignedUserId is null or (t.assignedUser is not null and t.assignedUser.id = :assignedUserId))
               and (:keywordPattern is null or lower(t.title) like :keywordPattern)
             order by t.createdAt desc, t.id desc
             """)
-    List<Task> search(
+    List<Task> searchAccessible(
+            @Param("currentUserId") Long currentUserId,
             @Param("status") TaskStatus status,
             @Param("priority") Priority priority,
             @Param("assignedUserId") Long assignedUserId,

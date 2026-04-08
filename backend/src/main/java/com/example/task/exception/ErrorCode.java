@@ -22,6 +22,8 @@ public enum ErrorCode {
     USR_002("USR-002", HttpStatus.NOT_FOUND, "ユーザーが存在しません"),
 
     RES_TASK_404("RES-TASK-404", HttpStatus.NOT_FOUND, "タスクが存在しません"),
+    PERM_TASK_403_UPD("PERM-TASK-403-UPD", HttpStatus.FORBIDDEN, "タスク更新権限がありません"),
+    PERM_TASK_403_DEL("PERM-TASK-403-DEL", HttpStatus.FORBIDDEN, "タスク削除権限がありません"),
 
     SYS_999("SYS-999", HttpStatus.INTERNAL_SERVER_ERROR, "システムエラーが発生しました。しばらくしてから再度お試しください。"),
     SYS_DB_001("SYS-DB-001", HttpStatus.INTERNAL_SERVER_ERROR, "データの取得または更新に失敗しました。しばらくしてから再度お試しください。");
