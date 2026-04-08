@@ -4,6 +4,14 @@ import { clearAuthToken, getAuthToken } from './authStorage'
 export const API_BASE_URL = 'http://localhost:8080'
 export const UNAUTHORIZED_EVENT = 'app:unauthorized'
 
+function isAuthApiRequest(url: string | undefined): boolean {
+  if (!url) {
+    return false
+  }
+
+  return url.startsWith('/api/auth/')
+}
+
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -24,7 +32,9 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const requestUrl = typeof error.config?.url === 'string' ? error.config.url : undefined
+
+    if (error.response?.status === 401 && !isAuthApiRequest(requestUrl)) {
       clearAuthToken()
       window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT))
     }
