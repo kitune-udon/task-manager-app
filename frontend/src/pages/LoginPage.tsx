@@ -29,7 +29,7 @@ export function LoginPage(props: Props) {
   } = props
 
   return (
-    <AuthShell pageTitle="ログイン画面" headerNote="ログイン画面モック">
+    <AuthShell>
       <section className="auth-card auth-card-login">
         <div className="auth-card-header centered">
           <h1>TaskFlow</h1>

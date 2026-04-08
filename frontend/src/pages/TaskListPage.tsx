@@ -27,7 +27,7 @@ export function TaskListPage(props: Props) {
   return (
     <TaskShell
       title="タスク一覧"
-      description="/tasks で一覧表示し、詳細・作成・編集はURLベースで遷移します。"
+      description="登録済みのタスクを一覧で確認できます。"
       activePath={props.activePath}
       onNavigate={props.onNavigate}
       onLogout={props.onLogout}

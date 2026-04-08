@@ -31,7 +31,6 @@ export function TaskShell({
       <header className="app-header">
         <div>
           <p className="app-header-title">TaskFlow</p>
-          <p className="app-header-subtitle">共通レイアウト部：ヘッダー</p>
         </div>
 
         <div className="app-header-actions">
@@ -43,11 +42,6 @@ export function TaskShell({
       </header>
 
       <aside className="sidebar">
-        <div>
-          <p className="sidebar-title">共通レイアウト部：サイドバー</p>
-          <p className="sidebar-subtitle">ログイン後の主要画面で共通利用。各メニューから画面遷移します。</p>
-        </div>
-
         <nav className="sidebar-nav">
           {navItems.map((item) => (
             <button

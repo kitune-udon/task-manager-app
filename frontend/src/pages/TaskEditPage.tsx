@@ -27,7 +27,7 @@ export function TaskEditPage(props: Props) {
   return (
     <TaskShell
       title="タスク編集"
-      description="既存データをフォームに反映し、PUT /api/tasks/{taskId} で更新します。"
+      description="登録済みのタスク内容を変更できます。"
       activePath={props.activePath}
       onNavigate={props.onNavigate}
       onLogout={props.onLogout}

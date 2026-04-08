@@ -37,18 +37,14 @@ export function RegisterPage(props: Props) {
   } = props
 
   return (
-    <AuthShell pageTitle="新規登録画面" headerNote="新規登録画面モック">
+    <AuthShell>
       <section className="auth-card auth-card-register">
         <div className="auth-card-header centered">
           <h1>新規登録</h1>
           <p className="subtext centered">アカウントを作成してタスク管理を始めます</p>
         </div>
 
-        {errorMessage ? (
-          <div className="status-box warning-box">{errorMessage}</div>
-        ) : (
-          <div className="status-box warning-box placeholder-box">入力内容に誤りがある場合は、ここにエラーメッセージを表示</div>
-        )}
+        {errorMessage ? <div className="status-box warning-box">{errorMessage}</div> : null}
         {successMessage ? <div className="status-box success-box">{successMessage}</div> : null}
 
         <form className="form-grid auth-form" onSubmit={onSubmit}>

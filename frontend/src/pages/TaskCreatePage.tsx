@@ -26,7 +26,7 @@ export function TaskCreatePage(props: Props) {
   return (
     <TaskShell
       title="タスク作成"
-      description="/api/tasks へPOSTし、API設計書準拠の項目で新規タスクを作成します。"
+      description="新しいタスクを登録できます。"
       activePath={props.activePath}
       onNavigate={props.onNavigate}
       onLogout={props.onLogout}
