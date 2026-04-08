@@ -1,7 +1,7 @@
 import type { FormEvent } from 'react'
 import type { ResolvedRoute } from '../app_navigation'
 import type { TaskPriority, TaskStatus } from '../lib/taskApi'
-import type { TaskFormBindings } from '../hooks/useTaskState'
+import type { AssigneeOption, TaskFormBindings } from '../hooks/useTaskState'
 import { TaskCreatePage } from '../pages/TaskCreatePage'
 import { TaskDetailPage } from '../pages/TaskDetailPage'
 import { TaskEditPage } from '../pages/TaskEditPage'
@@ -47,6 +47,9 @@ type Props = {
   priorityOptions: TaskOption<TaskPriority>
   editableStatusOptions: TaskOption<TaskStatus>
   editablePriorityOptions: TaskOption<TaskPriority>
+  assigneeOptions: AssigneeOption[]
+  isLoadingAssigneeOptions: boolean
+  assigneeOptionsError: string
 }
 
 export function AuthenticatedAppView({
@@ -86,6 +89,9 @@ export function AuthenticatedAppView({
   priorityOptions,
   editableStatusOptions,
   editablePriorityOptions,
+  assigneeOptions,
+  isLoadingAssigneeOptions,
+  assigneeOptionsError,
 }: Props) {
   switch (route.page) {
     case 'create':
@@ -103,6 +109,9 @@ export function AuthenticatedAppView({
           onSubmit={onCreateSubmit}
           statusOptions={editableStatusOptions}
           priorityOptions={editablePriorityOptions}
+          assigneeOptions={assigneeOptions}
+          isLoadingAssigneeOptions={isLoadingAssigneeOptions}
+          assigneeOptionsError={assigneeOptionsError}
         />
       )
 
@@ -126,6 +135,9 @@ export function AuthenticatedAppView({
           onSubmit={onEditSubmit}
           statusOptions={editableStatusOptions}
           priorityOptions={editablePriorityOptions}
+          assigneeOptions={assigneeOptions}
+          isLoadingAssigneeOptions={isLoadingAssigneeOptions}
+          assigneeOptionsError={assigneeOptionsError}
         />
       )
 

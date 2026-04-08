@@ -83,6 +83,9 @@ function App() {
       priorityOptions={PRIORITY_OPTIONS}
       editableStatusOptions={EDITABLE_STATUS_OPTIONS}
       editablePriorityOptions={EDITABLE_PRIORITY_OPTIONS}
+      assigneeOptions={tasks.assigneeOptions}
+      isLoadingAssigneeOptions={tasks.isLoadingAssignableUsers}
+      assigneeOptionsError={tasks.assigneeOptionsError}
     />
   )
 }

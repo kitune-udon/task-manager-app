@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react'
 import type { TaskPriority, TaskStatus } from '../lib/taskApi'
-import type { TaskFormBindings } from '../hooks/useTaskState'
+import type { AssigneeOption, TaskFormBindings } from '../hooks/useTaskState'
 import { TaskShell } from '../components/TaskShell'
 import { TaskForm } from '../components/TaskForm'
 
@@ -18,6 +18,9 @@ type Props = {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   statusOptions: Array<{ label: string; value: TaskStatus }>
   priorityOptions: Array<{ label: string; value: TaskPriority }>
+  assigneeOptions: AssigneeOption[]
+  isLoadingAssigneeOptions: boolean
+  assigneeOptionsError: string
 }
 
 export function TaskEditPage(props: Props) {
@@ -50,6 +53,9 @@ export function TaskEditPage(props: Props) {
             submittingLabel="更新中..."
             statusOptions={props.statusOptions}
             priorityOptions={props.priorityOptions}
+            assigneeOptions={props.assigneeOptions}
+            isLoadingAssigneeOptions={props.isLoadingAssigneeOptions}
+            assigneeOptionsError={props.assigneeOptionsError}
           />
         )}
       </section>

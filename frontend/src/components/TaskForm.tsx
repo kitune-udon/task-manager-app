@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react'
 import type { TaskPriority, TaskStatus } from '../lib/taskApi'
-import type { TaskFormBindings } from '../hooks/useTaskState'
+import type { AssigneeOption, TaskFormBindings } from '../hooks/useTaskState'
 
 type Props = {
   form: TaskFormBindings
@@ -12,6 +12,9 @@ type Props = {
   cancelLabel?: string
   statusOptions: Array<{ label: string; value: TaskStatus }>
   priorityOptions: Array<{ label: string; value: TaskPriority }>
+  assigneeOptions: AssigneeOption[]
+  isLoadingAssigneeOptions: boolean
+  assigneeOptionsError: string
 }
 
 export function TaskForm({
@@ -24,6 +27,9 @@ export function TaskForm({
   cancelLabel = 'キャンセル',
   statusOptions,
   priorityOptions,
+  assigneeOptions,
+  isLoadingAssigneeOptions,
+  assigneeOptionsError,
 }: Props) {
   return (
     <form className="form-grid create-form" onSubmit={onSubmit}>
@@ -93,14 +99,21 @@ export function TaskForm({
       </label>
 
       <label>
-        <span>担当者ID（任意）</span>
-        <input
+        <span>担当者</span>
+        <select
           className={form.fieldErrors.assignedUserId ? 'input-error' : ''}
-          type="text"
           value={form.assignedUserId}
           onChange={(e) => form.onAssignedUserIdChange(e.target.value)}
-          placeholder="例: 1"
-        />
+          disabled={isLoadingAssigneeOptions}
+        >
+          {assigneeOptions.map((option) => (
+            <option key={option.value || 'unassigned'} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        {isLoadingAssigneeOptions ? <p className="empty-message">担当者候補を読み込み中です...</p> : null}
+        {assigneeOptionsError ? <span className="field-error">{assigneeOptionsError}</span> : null}
         {form.fieldErrors.assignedUserId ? <span className="field-error">{form.fieldErrors.assignedUserId}</span> : null}
       </label>
 

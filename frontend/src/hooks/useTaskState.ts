@@ -13,6 +13,7 @@ import {
 import { extractFieldErrorsFromApiError, hasFieldErrors, resolveUserMessage } from '../lib/authApi'
 import type { FieldErrors } from '../lib/apiError'
 import type { ResolvedRoute } from '../app_navigation'
+import { fetchAssignableUsers, type AssignableUser } from '../lib/userApi'
 
 export type TaskFormState = {
   title: string
@@ -31,6 +32,11 @@ export type TaskFormBindings = TaskFormState & {
   onPriorityChange: (value: TaskPriority) => void
   onDueDateChange: (value: string) => void
   onAssignedUserIdChange: (value: string) => void
+}
+
+export type AssigneeOption = {
+  label: string
+  value: string
 }
 
 const defaultTaskForm: TaskFormState = {
@@ -125,6 +131,9 @@ export function useTaskState({
   const [editFieldErrors, setEditFieldErrors] = useState<FieldErrors>({})
   const [isSubmittingTask, setIsSubmittingTask] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>([])
+  const [isLoadingAssignableUsers, setIsLoadingAssignableUsers] = useState(false)
+  const [assigneeOptionsError, setAssigneeOptionsError] = useState('')
 
   const activePath = route.page === 'create' ? '/tasks/new' : '/tasks'
 
@@ -135,9 +144,26 @@ export function useTaskState({
     else if (title.trim().length > 100) next.title = 'タイトルは100文字以内で入力してください。'
     if (!priority.trim()) next.priority = '優先度を選択してください。'
     if (!status.trim()) next.status = 'ステータスを選択してください。'
-    if (assignedUserId && !/^\d+$/.test(assignedUserId)) next.assignedUserId = '担当者IDは数値で入力してください。'
+    if (assignedUserId && !assigneeOptions.some((option) => option.value === assignedUserId)) {
+      next.assignedUserId = '担当者を選択してください。'
+    }
 
     return next
+  }
+
+  const loadAssignableUsers = async () => {
+    setIsLoadingAssignableUsers(true)
+    setAssigneeOptionsError('')
+
+    try {
+      const users = await fetchAssignableUsers()
+      setAssignableUsers(users)
+    } catch (error) {
+      setAssignableUsers([])
+      setAssigneeOptionsError(resolveUserMessage(error))
+    } finally {
+      setIsLoadingAssignableUsers(false)
+    }
   }
 
   const loadTasks = async () => {
@@ -334,6 +360,27 @@ export function useTaskState({
     [priorityFilter, statusFilter, tasks],
   )
 
+  const assigneeOptions = useMemo<AssigneeOption[]>(() => {
+    const options = assignableUsers.map((user) => ({
+      value: String(user.id),
+      label: `${user.name} (${user.email})`,
+    }))
+
+    const selectedAssignedUserId =
+      selectedTask?.assignedUserId !== undefined && selectedTask?.assignedUserId !== null
+        ? String(selectedTask.assignedUserId)
+        : null
+
+    if (selectedAssignedUserId && !options.some((option) => option.value === selectedAssignedUserId)) {
+      options.unshift({
+        value: selectedAssignedUserId,
+        label: selectedTask?.assignedUserName ?? `ユーザーID: ${selectedAssignedUserId}`,
+      })
+    }
+
+    return [{ label: '未選択', value: '' }, ...options]
+  }, [assignableUsers, selectedTask?.assignedUserId, selectedTask?.assignedUserName])
+
   const createTaskForm = useMemo(
     () => toTaskFormBindings(createForm, createFieldErrors, setCreateForm, setCreateFieldErrors),
     [createFieldErrors, createForm],
@@ -346,6 +393,10 @@ export function useTaskState({
   useEffect(() => {
     if (isLoggedIn) {
       void loadTasks()
+      void loadAssignableUsers()
+    } else {
+      setAssignableUsers([])
+      setAssigneeOptionsError('')
     }
   }, [isLoggedIn])
 
@@ -379,6 +430,8 @@ export function useTaskState({
     setTasks([])
     setTaskErrorMessage('')
     setDetailErrorMessage('')
+    setAssignableUsers([])
+    setAssigneeOptionsError('')
     setCommentDraft('')
     setCreateForm(defaultTaskForm)
     setEditForm(defaultTaskForm)
@@ -400,11 +453,14 @@ export function useTaskState({
     statusFilter,
     priorityFilter,
     commentDraft,
+    assigneeOptions,
+    assigneeOptionsError,
     createTaskForm,
     editTaskForm,
     setStatusFilter,
     setPriorityFilter,
     setCommentDraft,
+    isLoadingAssignableUsers,
     actions: {
       loadTasks,
       handleShowList,
