@@ -83,5 +83,9 @@ export function resolveUserMessage(error: unknown): string {
     return rawMessage || '認証エラーが発生しました。再度ログインしてください。'
   }
 
+  if (error instanceof Error && error.message.trim()) {
+    return error.message
+  }
+
   return rawMessage || 'エラーが発生しました。'
 }
