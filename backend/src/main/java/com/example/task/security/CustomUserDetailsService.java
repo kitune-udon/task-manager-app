@@ -7,6 +7,9 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+/**
+ * メールアドレスをキーに認証対象ユーザーを取得する。
+ */
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
 
@@ -16,6 +19,9 @@ public class CustomUserDetailsService implements UserDetailsService {
         this.userRepository = userRepository;
     }
 
+    /**
+     * Spring Security から渡された識別子をもとに DB からユーザーを解決する。
+     */
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(username)

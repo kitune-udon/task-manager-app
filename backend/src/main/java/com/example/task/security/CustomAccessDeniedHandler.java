@@ -14,6 +14,9 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.time.OffsetDateTime;
 
+/**
+ * 認証済みだが権限不足の場合の 403 レスポンスを組み立てる。
+ */
 @Component
 public class CustomAccessDeniedHandler implements AccessDeniedHandler {
 
@@ -26,6 +29,7 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response,
                        AccessDeniedException accessDeniedException) throws IOException {
+        // 権限制御エラーも通常の業務エラーと同じ JSON 形式に揃える。
         ErrorResponse body = ErrorResponse.builder()
                 .timestamp(OffsetDateTime.now())
                 .status(HttpStatus.FORBIDDEN.value())

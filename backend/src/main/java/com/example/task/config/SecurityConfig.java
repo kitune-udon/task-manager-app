@@ -18,6 +18,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+/**
+ * 認証方式、公開エンドポイント、フィルタ順序を定義するセキュリティ設定。
+ */
 @Configuration
 @EnableMethodSecurity
 @EnableConfigurationProperties({JwtProperties.class, CorsProperties.class})
@@ -40,6 +43,9 @@ public class SecurityConfig {
         this.requestIdFilter = requestIdFilter;
     }
 
+    /**
+     * JWT ベースのステートレス認証を有効化し、保護対象 API を定義する。
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -64,11 +70,17 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /**
+     * ユーザー登録時やログイン判定で使うパスワードハッシュ化器。
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * Spring Security が保持する認証マネージャーを他コンポーネントから参照できるようにする。
+     */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();

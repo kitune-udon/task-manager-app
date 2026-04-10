@@ -15,6 +15,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+/**
+ * Authorization ヘッダーの JWT を検証し、認証済みユーザーを SecurityContext に設定する。
+ */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -36,9 +39,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-
         String authHeader = request.getHeader("Authorization");
 
+        // Bearer トークンがないリクエストは未認証のまま後続へ流す。
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -50,11 +53,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             username = jwtUtil.extractUsername(jwt);
         } catch (ExpiredJwtException ex) {
+            // 期限切れは専用エラーコードを付与して認証エントリポイントへ委譲する。
             request.setAttribute("authErrorCode", "AUTH-004");
             authenticationEntryPoint.commence(request, response,
                     new InsufficientAuthenticationException("Token expired", ex));
             return;
         } catch (JwtException | IllegalArgumentException ex) {
+            // 署名不正や形式不備も同じく統一レスポンスで返す。
             request.setAttribute("authErrorCode", "AUTH-003");
             authenticationEntryPoint.commence(request, response,
                     new InsufficientAuthenticationException("Invalid token", ex));
@@ -66,6 +71,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     (CustomUserDetails) userDetailsService.loadUserByUsername(username);
 
             if (jwtUtil.isTokenValid(jwt, userDetails)) {
+                // トークンが有効な場合だけ認証済みユーザーとしてコンテキストに登録する。
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 userDetails,

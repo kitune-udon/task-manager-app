@@ -7,6 +7,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
+/**
+ * 認証フィルタの動作確認に使う簡易テスト用 API。
+ */
 @RestController
 @RequestMapping("/api/auth-test")
 public class AuthTestController {
@@ -17,6 +20,9 @@ public class AuthTestController {
         this.currentUserProvider = currentUserProvider;
     }
 
+    /**
+     * 現在の認証コンテキストから取得したユーザー情報をそのまま返す。
+     */
     @GetMapping("/me")
     public Map<String, Object> me() {
         return Map.of(

@@ -7,6 +7,9 @@ import lombok.Getter;
 import java.time.OffsetDateTime;
 import java.util.List;
 
+/**
+ * API の失敗レスポンスを統一形式で表す DTO。
+ */
 @Getter
 @Builder
 @AllArgsConstructor

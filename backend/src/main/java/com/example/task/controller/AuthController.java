@@ -10,6 +10,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * ユーザー登録とログインを受け付ける認証 API。
+ */
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -20,11 +23,17 @@ public class AuthController {
         this.authService = authService;
     }
 
+    /**
+     * 新規ユーザーを登録し、作成結果を返す。
+     */
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
     }
 
+    /**
+     * 認証に成功したユーザーへ JWT を払い出す。
+     */
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));

@@ -4,6 +4,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.List;
 
+/**
+ * CORS の許可オリジン一覧を設定ファイルから受け取る。
+ */
 @ConfigurationProperties(prefix = "app.cors")
 public class CorsProperties {
 

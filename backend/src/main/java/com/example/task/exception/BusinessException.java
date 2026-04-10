@@ -2,6 +2,9 @@ package com.example.task.exception;
 
 import lombok.Getter;
 
+/**
+ * 業務ルール違反を API 用のエラーコード付きで表す基底例外。
+ */
 @Getter
 public class BusinessException extends RuntimeException {
 

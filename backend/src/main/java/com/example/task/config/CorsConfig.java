@@ -5,6 +5,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+/**
+ * フロントエンドからのクロスオリジンアクセス設定をまとめる。
+ */
 @Configuration
 public class CorsConfig {
 
@@ -14,6 +17,9 @@ public class CorsConfig {
         this.corsProperties = corsProperties;
     }
 
+    /**
+     * 設定ファイルの許可オリジンを読み取り、API 全体に CORS を適用する。
+     */
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         String[] allowedOrigins = corsProperties.getAllowedOrigins().stream()

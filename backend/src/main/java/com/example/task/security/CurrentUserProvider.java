@@ -5,6 +5,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
+/**
+ * SecurityContext から現在のログインユーザー情報を安全に取り出す。
+ */
 @Component
 public class CurrentUserProvider {
 
@@ -16,6 +19,9 @@ public class CurrentUserProvider {
         return getCurrentUser().getUsername();
     }
 
+    /**
+     * 認証済みユーザーが存在しない場合は例外にして、呼び出し側で想定外を早期検知する。
+     */
     public CustomUserDetails getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 

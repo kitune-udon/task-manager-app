@@ -8,6 +8,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.List;
 
+/**
+ * アプリケーションの User エンティティを Spring Security 用の認証情報に変換したもの。
+ */
 public class CustomUserDetails implements UserDetails {
 
     private final Long id;
@@ -22,6 +25,9 @@ public class CustomUserDetails implements UserDetails {
         this.password = password;
     }
 
+    /**
+     * 永続化済みユーザーを認証コンテキストへ載せられる形式に変換する。
+     */
     public static CustomUserDetails from(User user) {
         return new CustomUserDetails(
                 user.getId(),

@@ -33,6 +33,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * MVP 段階で提供する主要 API の疎通と認可ルールをまとめて検証する。
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 class MvpApiIntegrationTests {
@@ -52,6 +55,9 @@ class MvpApiIntegrationTests {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    /**
+     * テスト同士が独立するよう、毎回データを全消去してから開始する。
+     */
     @BeforeEach
     void setUp() {
         taskRepository.deleteAllInBatch();
@@ -296,6 +302,9 @@ class MvpApiIntegrationTests {
                 .andExpect(jsonPath("$.errorCode").value("PERM-TASK-403-DEL"));
     }
 
+    /**
+     * 認証済みユーザーを直接 DB に投入するテスト用ヘルパー。
+     */
     private User createUser(String name, String email, String rawPassword) {
         User user = User.builder()
                 .name(name)
@@ -305,6 +314,9 @@ class MvpApiIntegrationTests {
         return userRepository.save(user);
     }
 
+    /**
+     * 参照・認可テスト用のタスクデータを作成するヘルパー。
+     */
     private Task createTask(String title, User createdBy, User assignedUser, TaskStatus status, Priority priority) {
         Task task = Task.builder()
                 .title(title)
@@ -318,6 +330,9 @@ class MvpApiIntegrationTests {
         return taskRepository.save(task);
     }
 
+    /**
+     * ログイン API を呼び出してレスポンスの token 文字列だけを抜き出す。
+     */
     private String loginAndGetToken(String email, String password) throws Exception {
         MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -332,6 +347,9 @@ class MvpApiIntegrationTests {
         return body.path("token").asText();
     }
 
+    /**
+     * タスク作成 API を呼び出し、後続テストで使う ID を返す。
+     */
     private Long createTaskAndGetId(String token, Map<String, Object> payload) throws Exception {
         MvcResult createResult = mockMvc.perform(post("/api/tasks")
                         .header("Authorization", bearer(token))
@@ -344,10 +362,16 @@ class MvpApiIntegrationTests {
         return body.path("id").asLong();
     }
 
+    /**
+     * Authorization ヘッダー用の Bearer 形式へ整形する。
+     */
     private String bearer(String token) {
         return "Bearer " + token;
     }
 
+    /**
+     * Map などのテストデータを JSON 文字列へ変換する。
+     */
     private String asJson(Object value) throws Exception {
         return objectMapper.writeValueAsString(value);
     }

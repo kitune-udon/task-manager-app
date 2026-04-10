@@ -14,6 +14,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * JWT の生成と検証に必要な共通処理をまとめるユーティリティ。
+ */
 @Component
 public class JwtUtil {
 
@@ -23,9 +26,13 @@ public class JwtUtil {
         this.jwtProperties = jwtProperties;
     }
 
+    /**
+     * 認証済みユーザーを表す JWT を生成する。
+     */
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         if (userDetails instanceof CustomUserDetails customUserDetails) {
+            // API 側で再利用できるよう、必要なユーザー ID もクレームに含める。
             claims.put("userId", customUserDetails.getId());
         }
 
@@ -41,10 +48,16 @@ public class JwtUtil {
                 .compact();
     }
 
+    /**
+     * トークンの subject に保存したメールアドレスを取り出す。
+     */
     public String extractUsername(String token) {
         return extractAllClaims(token).getSubject();
     }
 
+    /**
+     * トークン利用者と期限の両方をチェックして再利用可能か判定する。
+     */
     public boolean isTokenValid(String token, UserDetails userDetails) {
         String username = extractUsername(token);
         return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
@@ -62,6 +75,9 @@ public class JwtUtil {
                 .getPayload();
     }
 
+    /**
+     * 設定値の Base64 文字列を JWT 署名に使える秘密鍵へ変換する。
+     */
     private SecretKey getSigningKey() {
         byte[] keyBytes = Decoders.BASE64.decode(jwtProperties.getSecret());
         return Keys.hmacShaKeyFor(keyBytes);

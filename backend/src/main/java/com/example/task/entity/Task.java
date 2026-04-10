@@ -19,6 +19,9 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 
+/**
+ * タスク本体と担当者・作成者の関連を保持するエンティティ。
+ */
 @Entity
 @Table(name = "tasks")
 @Getter

@@ -8,6 +8,9 @@ import lombok.Getter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/**
+ * タスク一覧表示向けの軽量レスポンス DTO。
+ */
 @Getter
 @Builder
 public class TaskSummaryResponse {

@@ -9,6 +9,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/**
+ * ユーザー一覧取得などの参照系処理を担当するサービス。
+ */
 @Service
 public class UserService {
 
@@ -18,6 +21,9 @@ public class UserService {
         this.userRepository = userRepository;
     }
 
+    /**
+     * 名前順で安定したユーザー一覧を返し、画面側で扱いやすい DTO に変換する。
+     */
     @Transactional(readOnly = true)
     public List<UserResponse> getUsers() {
         return userRepository.findAll(Sort.by(Sort.Order.asc("name"), Sort.Order.asc("id"))).stream()
@@ -25,6 +31,9 @@ public class UserService {
                 .toList();
     }
 
+    /**
+     * Entity を API 応答用 DTO に写像する。
+     */
     private UserResponse toUserResponse(User user) {
         return UserResponse.builder()
                 .id(user.getId())

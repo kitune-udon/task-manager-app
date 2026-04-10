@@ -12,6 +12,9 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * リクエスト単位の識別子を採番し、ログやレスポンスで追跡しやすくするフィルタ。
+ */
 @Component
 public class RequestIdFilter extends OncePerRequestFilter {
 
@@ -19,10 +22,12 @@ public class RequestIdFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        // クライアントが指定した ID を優先し、なければサーバー側で採番する。
         String requestId = Optional.ofNullable(request.getHeader("X-Request-Id"))
                 .filter(StringUtils::hasText)
                 .orElse(UUID.randomUUID().toString());
 
+        // 以降の処理とレスポンスの両方から同じ requestId を参照できるようにする。
         request.setAttribute("requestId", requestId);
         response.setHeader("X-Request-Id", requestId);
 

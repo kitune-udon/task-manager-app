@@ -2,6 +2,9 @@ package com.example.task.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+/**
+ * JWT の署名鍵と有効期限を設定ファイルから受け取る。
+ */
 @ConfigurationProperties(prefix = "app.jwt")
 public class JwtProperties {
 

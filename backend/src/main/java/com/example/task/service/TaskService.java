@@ -21,6 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * タスクの作成、参照、更新、削除と権限制御をまとめるサービス。
+ */
 @Service
 public class TaskService {
 
@@ -38,6 +41,9 @@ public class TaskService {
         this.currentUserProvider = currentUserProvider;
     }
 
+    /**
+     * リクエストを Task エンティティへ変換し、作成者情報を補って保存する。
+     */
     @Transactional
     public TaskResponse createTask(TaskCreateRequest request) {
         Task task = Task.builder()
@@ -54,6 +60,9 @@ public class TaskService {
         return toDetailResponse(saved);
     }
 
+    /**
+     * ログインユーザーが参照可能なタスクを検索条件付きで一覧化する。
+     */
     @Transactional(readOnly = true)
     public List<TaskSummaryResponse> getTasks(TaskStatus status, Priority priority, Long assignedUserId, String keyword) {
         Long currentUserId = currentUserProvider.getCurrentUserId();
@@ -65,6 +74,9 @@ public class TaskService {
                 .toList();
     }
 
+    /**
+     * 単一タスクを取得し、閲覧権限がある場合だけ詳細レスポンスへ変換する。
+     */
     @Transactional(readOnly = true)
     public TaskResponse getTask(Long taskId) {
         Long currentUserId = currentUserProvider.getCurrentUserId();
@@ -73,6 +85,9 @@ public class TaskService {
         return toDetailResponse(task);
     }
 
+    /**
+     * 更新対象の存在確認と権限確認を行ってから内容を書き換える。
+     */
     @Transactional
     public TaskResponse updateTask(Long taskId, TaskUpdateRequest request) {
         Long currentUserId = currentUserProvider.getCurrentUserId();
@@ -89,6 +104,9 @@ public class TaskService {
         return toDetailResponse(saved);
     }
 
+    /**
+     * 作成者権限を確認したうえでタスクを物理削除する。
+     */
     @Transactional
     public void deleteTask(Long taskId) {
         Long currentUserId = currentUserProvider.getCurrentUserId();
@@ -97,6 +115,9 @@ public class TaskService {
         taskRepository.delete(task);
     }
 
+    /**
+     * 詳細取得や更新で共通利用するタスク取得処理。
+     */
     private Task getTaskEntity(Long taskId) {
         return taskRepository.findWithAssignedUserById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -105,6 +126,9 @@ public class TaskService {
                 ));
     }
 
+    /**
+     * 担当者 ID が指定された場合のみ関連ユーザーを解決する。
+     */
     private User resolveAssignedUser(Long assignedUserId) {
         if (assignedUserId == null) {
             return null;
@@ -117,6 +141,9 @@ public class TaskService {
                 ));
     }
 
+    /**
+     * 認証済みユーザーを Task.createdBy に設定するためにエンティティ化する。
+     */
     private User resolveCurrentUser() {
         Long currentUserId = currentUserProvider.getCurrentUserId();
 
@@ -127,6 +154,9 @@ public class TaskService {
                 ));
     }
 
+    /**
+     * 閲覧可能条件を満たさない場合は 403 エラーへ変換する。
+     */
     private void authorizeTaskView(Task task, Long currentUserId) {
         if (canViewTask(task, currentUserId)) {
             return;
@@ -135,6 +165,9 @@ public class TaskService {
         throw new BusinessException(ErrorCode.AUTH_005, "対象タスクの参照権限がありません");
     }
 
+    /**
+     * 更新権限は閲覧可能かどうかと同じ条件で判定する。
+     */
     private void authorizeTaskUpdate(Task task, Long currentUserId) {
         if (canUpdateTask(task, currentUserId)) {
             return;
@@ -143,6 +176,9 @@ public class TaskService {
         throw new BusinessException(ErrorCode.PERM_TASK_403_UPD);
     }
 
+    /**
+     * 削除は作成者本人のみ許可する。
+     */
     private void authorizeTaskDelete(Task task, Long currentUserId) {
         if (canDeleteTask(task, currentUserId)) {
             return;
@@ -173,6 +209,9 @@ public class TaskService {
         return assignedUser != null && currentUserId.equals(assignedUser.getId());
     }
 
+    /**
+     * 部分一致検索用に前後へワイルドカードを付与し、小文字で統一する。
+     */
     private String toKeywordPattern(String keyword) {
         if (keyword == null || keyword.isBlank()) {
             return null;
@@ -180,6 +219,9 @@ public class TaskService {
         return "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%";
     }
 
+    /**
+     * 一覧表示向けに必要最小限の項目へ絞って変換する。
+     */
     private TaskSummaryResponse toSummaryResponse(Task task) {
         User assignedUser = task.getAssignedUser();
 
@@ -194,6 +236,9 @@ public class TaskService {
                 .build();
     }
 
+    /**
+     * 詳細表示用に関連ユーザー情報も含めた DTO へ変換する。
+     */
     private TaskResponse toDetailResponse(Task task) {
         User assignedUser = task.getAssignedUser();
         User createdBy = task.getCreatedBy();
@@ -212,6 +257,9 @@ public class TaskService {
                 .build();
     }
 
+    /**
+     * タスク関連レスポンスで共通利用する簡易ユーザー表現へ変換する。
+     */
     private TaskUserResponse toTaskUserResponse(User user) {
         if (user == null) {
             return null;

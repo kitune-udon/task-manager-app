@@ -16,6 +16,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * ユーザー登録とログイン認証を担当するサービス。
+ */
 @Service
 public class AuthService {
 
@@ -33,12 +36,16 @@ public class AuthService {
         this.jwtUtil = jwtUtil;
     }
 
+    /**
+     * メールアドレス重複を防ぎつつ新規ユーザーを登録する。
+     */
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new ConflictException(ErrorCode.USR_001);
         }
 
+        // 保存前にパスワードをハッシュ化し、平文のまま保持しない。
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
@@ -55,6 +62,9 @@ public class AuthService {
                 .build();
     }
 
+    /**
+     * メールアドレスとパスワードを照合し、成功時に JWT を返す。
+     */
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())

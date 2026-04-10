@@ -11,8 +11,14 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Task エンティティの保存と参照条件付き検索を提供するリポジトリ。
+ */
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
+    /**
+     * 作成者または担当者として参照可能なタスクだけを条件付きで取得する。
+     */
     @EntityGraph(attributePaths = {"assignedUser", "createdBy"})
     @Query("""
             select t
@@ -33,6 +39,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             @Param("keywordPattern") String keywordPattern
     );
 
+    /**
+     * 詳細表示で必要な関連ユーザーをまとめて読み込む。
+     */
     @EntityGraph(attributePaths = {"assignedUser", "createdBy"})
     Optional<Task> findWithAssignedUserById(Long id);
 }

@@ -20,9 +20,15 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * アプリケーション内の例外を API 仕様の ErrorResponse へ統一変換する。
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    /**
+     * Bean Validation の項目エラーをフィールド単位の詳細付きで返す。
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
             MethodArgumentNotValidException ex,
@@ -48,6 +54,9 @@ public class GlobalExceptionHandler {
         );
     }
 
+    /**
+     * ログイン失敗は認証エラーコードへ寄せて返す。
+     */
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleBadCredentials(
             BadCredentialsException ex,
@@ -148,6 +157,9 @@ public class GlobalExceptionHandler {
         );
     }
 
+    /**
+     * 各例外ハンドラから呼ばれる共通レスポンス生成処理。
+     */
     private ResponseEntity<ErrorResponse> build(
             HttpStatus status,
             String errorCode,
@@ -167,6 +179,9 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(status).body(body);
     }
 
+    /**
+     * リクエスト DTO とエラー項目から、返すべき業務エラーコードを決める。
+     */
     private ErrorCode resolveValidationErrorCode(Object target, List<ErrorDetail> details) {
         if (target instanceof TaskCreateRequest || target instanceof TaskUpdateRequest) {
             if (hasField(details, "title")) {
@@ -183,6 +198,9 @@ public class GlobalExceptionHandler {
         return ErrorCode.VAL_INPUT_001;
     }
 
+    /**
+     * JSON の型不一致や enum 変換失敗を、画面で扱いやすい入力エラーへ補正する。
+     */
     private ValidationErrorResolution resolveNotReadableValidation(
             HttpMessageNotReadableException ex,
             HttpServletRequest request

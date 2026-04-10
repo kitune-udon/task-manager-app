@@ -6,6 +6,9 @@ import lombok.Getter;
 
 import java.time.LocalDateTime;
 
+/**
+ * ユーザー登録完了後に返すレスポンス DTO。
+ */
 @Getter
 @Builder
 @AllArgsConstructor

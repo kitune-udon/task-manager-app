@@ -14,6 +14,9 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.time.OffsetDateTime;
 
+/**
+ * 未認証アクセス時のエラーレスポンスを API 仕様の JSON 形式で返す。
+ */
 @Component
 public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
@@ -40,6 +43,7 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
             default -> ErrorCode.AUTH_001.getDefaultMessage();
         };
 
+        // 認証失敗理由を統一フォーマットに詰め替えて返却する。
         ErrorResponse body = ErrorResponse.builder()
                 .timestamp(OffsetDateTime.now())
                 .status(HttpStatus.UNAUTHORIZED.value())

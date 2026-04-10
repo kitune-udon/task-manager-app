@@ -10,6 +10,9 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 
+/**
+ * タスク更新 API の入力値を受け取る DTO。
+ */
 @Getter
 @Setter
 public class TaskUpdateRequest {

@@ -12,6 +12,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * タスク管理システムの利用者を表すエンティティ。
+ */
 @Entity
 @Table(name = "users")
 @Getter

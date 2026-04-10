@@ -6,6 +6,9 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
+/**
+ * ログイン API の入力値を受け取る DTO。
+ */
 @Getter
 @Setter
 public class LoginRequest {

@@ -5,6 +5,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 
+/**
+ * ログイン成功時に返す JWT とユーザー情報。
+ */
 @Getter
 @Builder
 @AllArgsConstructor

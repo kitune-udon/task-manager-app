@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/**
+ * 画面で利用するユーザー候補一覧を返す API。
+ */
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
@@ -19,6 +22,9 @@ public class UserController {
         this.userService = userService;
     }
 
+    /**
+     * タスク担当者選択などで使うユーザー一覧を返す。
+     */
     @GetMapping
     public ResponseEntity<List<UserResponse>> getUsers() {
         return ResponseEntity.ok(userService.getUsers());

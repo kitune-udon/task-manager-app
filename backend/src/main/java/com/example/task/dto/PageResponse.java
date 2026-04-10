@@ -5,6 +5,9 @@ import lombok.Getter;
 
 import java.util.List;
 
+/**
+ * ページング結果をまとめて返すための共通 DTO。
+ */
 @Getter
 @Builder
 public class PageResponse<T> {

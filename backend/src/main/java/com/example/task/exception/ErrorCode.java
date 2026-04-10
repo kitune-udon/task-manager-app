@@ -4,6 +4,9 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
+/**
+ * API 全体で共通利用するエラーコードと HTTP ステータスの対応表。
+ */
 @Getter
 @AllArgsConstructor
 public enum ErrorCode {

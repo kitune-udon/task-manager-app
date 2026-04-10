@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * タスクの CRUD と一覧検索を公開する API。
+ */
 @RestController
 @RequestMapping("/api/tasks")
 public class TaskController {
@@ -24,12 +27,18 @@ public class TaskController {
         this.taskService = taskService;
     }
 
+    /**
+     * 入力値を検証したうえで新規タスクを作成する。
+     */
     @PostMapping
     public ResponseEntity<TaskResponse> createTask(@Valid @RequestBody TaskCreateRequest request) {
         TaskResponse response = taskService.createTask(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    /**
+     * ログインユーザーが参照できるタスクだけを条件付きで取得する。
+     */
     @GetMapping
     public ResponseEntity<List<TaskSummaryResponse>> getTasks(
             @RequestParam(required = false) TaskStatus status,
@@ -41,12 +50,18 @@ public class TaskController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * 単一タスクの詳細を返す。
+     */
     @GetMapping("/{taskId}")
     public ResponseEntity<TaskResponse> getTask(@PathVariable Long taskId) {
         TaskResponse response = taskService.getTask(taskId);
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * 権限を確認したうえで既存タスクを更新する。
+     */
     @PutMapping("/{taskId}")
     public ResponseEntity<TaskResponse> updateTask(
             @PathVariable Long taskId,
@@ -56,6 +71,9 @@ public class TaskController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * 作成者のみ削除できるルールでタスクを削除する。
+     */
     @DeleteMapping("/{taskId}")
     public ResponseEntity<Void> deleteTask(@PathVariable Long taskId) {
         taskService.deleteTask(taskId);
