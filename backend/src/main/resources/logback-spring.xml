@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <springProperty scope="context" name="APPLICATION_LOG_LEVEL"
+                    source="app.logging.level.application" defaultValue="INFO"/>
+    <springProperty scope="context" name="SECURITY_LOG_LEVEL"
+                    source="app.logging.level.security" defaultValue="INFO"/>
+    <springProperty scope="context" name="AUDIT_LOG_LEVEL"
+                    source="app.logging.level.audit" defaultValue="INFO"/>
 
     <property name="ROOT_CONSOLE_PATTERN"
               value="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] %logger{36} - %msg%n"/>
@@ -17,15 +23,15 @@
         </encoder>
     </appender>
 
-    <logger name="application" level="DEBUG" additivity="false">
+    <logger name="application" level="${APPLICATION_LOG_LEVEL}" additivity="false">
         <appender-ref ref="STRUCTURED_CONSOLE"/>
     </logger>
 
-    <logger name="security" level="DEBUG" additivity="false">
+    <logger name="security" level="${SECURITY_LOG_LEVEL}" additivity="false">
         <appender-ref ref="STRUCTURED_CONSOLE"/>
     </logger>
 
-    <logger name="audit" level="DEBUG" additivity="false">
+    <logger name="audit" level="${AUDIT_LOG_LEVEL}" additivity="false">
         <appender-ref ref="STRUCTURED_CONSOLE"/>
     </logger>
 

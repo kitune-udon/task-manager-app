@@ -5,6 +5,7 @@ import com.example.task.dto.TaskCreateRequest;
 import com.example.task.dto.TaskUpdateRequest;
 import com.example.task.dto.common.ErrorDetail;
 import com.example.task.dto.common.ErrorResponse;
+import com.example.task.logging.LoggingProperties;
 import com.example.task.logging.RequestLogContext;
 import com.example.task.logging.StructuredLogJsonFormatter;
 import com.example.task.logging.StructuredLogService;
@@ -32,13 +33,16 @@ public class GlobalExceptionHandler {
 
     private final StructuredLogService structuredLogService;
     private final RequestLogContext requestLogContext;
+    private final LoggingProperties loggingProperties;
 
     public GlobalExceptionHandler(
             StructuredLogService structuredLogService,
-            RequestLogContext requestLogContext
+            RequestLogContext requestLogContext,
+            LoggingProperties loggingProperties
     ) {
         this.structuredLogService = structuredLogService;
         this.requestLogContext = requestLogContext;
+        this.loggingProperties = loggingProperties;
     }
 
     /**
@@ -222,7 +226,7 @@ public class GlobalExceptionHandler {
             fields.put("errorCode", errorCode);
             fields.put("safeMessage", message);
             fields.put("exceptionClass", ex != null ? ex.getClass().getName() : Exception.class.getName());
-            if (ex != null) {
+            if (ex != null && loggingProperties.isIncludeStacktrace()) {
                 fields.put("stackTrace", StructuredLogJsonFormatter.stackTrace(ex));
             }
             structuredLogService.errorApplication("LOG-SYS-001", "アプリ例外", fields);

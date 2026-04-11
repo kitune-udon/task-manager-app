@@ -10,3 +10,11 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+
+app:
+  logging:
+    include-stacktrace: ${APP_LOGGING_INCLUDE_STACKTRACE:false}
+    level:
+      application: ${APP_LOGGING_LEVEL_APPLICATION:INFO}
+      security: ${APP_LOGGING_LEVEL_SECURITY:INFO}
+      audit: ${APP_LOGGING_LEVEL_AUDIT:INFO}
