@@ -15,6 +15,9 @@ export type ApiErrorPayload = {
 
 export type FieldErrors = Record<string, string>
 
+const NOT_FOUND_CODES = new Set(['ERR-TASK-004', 'ERR-USR-002'])
+const FORBIDDEN_CODES = new Set(['ERR-AUTH-005', 'ERR-TASK-005', 'ERR-TASK-006'])
+
 function parseApiError(error: unknown): ApiErrorPayload | undefined {
   if (!axios.isAxiosError(error)) {
     return undefined
@@ -67,19 +70,19 @@ export function resolveUserMessage(error: unknown): string {
   const status = apiError?.status
   const rawMessage = apiError?.message ?? apiError?.error ?? ''
 
-  if (code.startsWith('SYS-') || status === 500 || rawMessage === 'Internal Server Error') {
+  if (code.startsWith('ERR-SYS-') || status === 500 || rawMessage === 'Internal Server Error') {
     return 'システムエラーが発生しました。しばらくしてから再度お試しください。'
   }
 
-  if (code.startsWith('RES-')) {
+  if (NOT_FOUND_CODES.has(code) || status === 404) {
     return rawMessage || '対象データが見つかりません。'
   }
 
-  if (code.startsWith('PERM-') || code === 'AUTH-005' || status == 403) {
+  if (FORBIDDEN_CODES.has(code) || status === 403) {
     return 'この操作を行う権限がありません。'
   }
 
-  if (code.startsWith('AUTH-') || status == 401) {
+  if (code.startsWith('ERR-AUTH-') || status === 401) {
     return rawMessage || '認証エラーが発生しました。再度ログインしてください。'
   }
 

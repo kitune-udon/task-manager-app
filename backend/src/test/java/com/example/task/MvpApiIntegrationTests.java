@@ -93,7 +93,7 @@ class MvpApiIntegrationTests {
                                 "password", "short"
                         ))))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorCode").value("VAL-INPUT-001"))
+                .andExpect(jsonPath("$.errorCode").value("ERR-INPUT-001"))
                 .andExpect(jsonPath("$.details", hasSize(3)))
                 .andExpect(jsonPath("$.details[*].field", hasItems("name", "email", "password")));
     }
@@ -113,7 +113,7 @@ class MvpApiIntegrationTests {
     }
 
     @Test
-    @DisplayName("ログイン: 認証失敗時は AUTH-002 を返す")
+    @DisplayName("ログイン: 認証失敗時は ERR-AUTH-002 を返す")
     void loginFailsWithBadCredentials() throws Exception {
         createUser("Login User", "login@example.com", "password123");
 
@@ -124,24 +124,24 @@ class MvpApiIntegrationTests {
                                 "password", "wrongpass123"
                         ))))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.errorCode").value("AUTH-002"));
+                .andExpect(jsonPath("$.errorCode").value("ERR-AUTH-002"));
     }
 
     @Test
-    @DisplayName("認証: token なしの保護 API は AUTH-001 を返す")
+    @DisplayName("認証: token なしの保護 API は ERR-AUTH-001 を返す")
     void protectedApiRequiresAuthentication() throws Exception {
         mockMvc.perform(get("/api/tasks"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.errorCode").value("AUTH-001"));
+                .andExpect(jsonPath("$.errorCode").value("ERR-AUTH-001"));
     }
 
     @Test
-    @DisplayName("認証: 不正 token の保護 API は AUTH-003 を返す")
+    @DisplayName("認証: 不正 token の保護 API は ERR-AUTH-003 を返す")
     void invalidTokenReturnsAuth003() throws Exception {
         mockMvc.perform(get("/api/tasks")
                         .header("Authorization", bearer("invalid-token")))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.errorCode").value("AUTH-003"));
+                .andExpect(jsonPath("$.errorCode").value("ERR-AUTH-003"));
     }
 
     @Test
@@ -208,7 +208,7 @@ class MvpApiIntegrationTests {
         mockMvc.perform(get("/api/tasks/{taskId}", taskId)
                         .header("Authorization", bearer(token)))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.errorCode").value("RES-TASK-404"));
+                .andExpect(jsonPath("$.errorCode").value("ERR-TASK-004"));
     }
 
     @Test
@@ -232,7 +232,7 @@ class MvpApiIntegrationTests {
     }
 
     @Test
-    @DisplayName("タスク: バリデーションエラー時に VAL-TASK-001 を返す")
+    @DisplayName("タスク: バリデーションエラー時に ERR-TASK-001 を返す")
     void createTaskValidationFails() throws Exception {
         createUser("Creator", "creator@example.com", "password123");
         String token = loginAndGetToken("creator@example.com", "password123");
@@ -246,12 +246,12 @@ class MvpApiIntegrationTests {
                                 "priority", "HIGH"
                         ))))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorCode").value("VAL-TASK-001"))
+                .andExpect(jsonPath("$.errorCode").value("ERR-TASK-001"))
                 .andExpect(jsonPath("$.details[*].field", hasItems("title")));
     }
 
     @Test
-    @DisplayName("認可: 他人タスクの詳細参照は AUTH-005 を返す")
+    @DisplayName("認可: 他人タスクの詳細参照は ERR-AUTH-005 を返す")
     void viewForbiddenTaskReturnsAuth005() throws Exception {
         User creator = createUser("Creator", "creator@example.com", "password123");
         User outsider = createUser("Outsider", "outsider@example.com", "password123");
@@ -262,11 +262,11 @@ class MvpApiIntegrationTests {
         mockMvc.perform(get("/api/tasks/{taskId}", hiddenTask.getId())
                         .header("Authorization", bearer(token)))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("AUTH-005"));
+                .andExpect(jsonPath("$.errorCode").value("ERR-AUTH-005"));
     }
 
     @Test
-    @DisplayName("認可: 他人タスクの更新は PERM-TASK-403-UPD を返す")
+    @DisplayName("認可: 他人タスクの更新は ERR-TASK-005 を返す")
     void updateForbiddenTaskReturnsTaskPermissionCode() throws Exception {
         User creator = createUser("Creator", "creator@example.com", "password123");
         User outsider = createUser("Outsider", "outsider@example.com", "password123");
@@ -284,11 +284,11 @@ class MvpApiIntegrationTests {
                                 "priority", "LOW"
                         ))))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("PERM-TASK-403-UPD"));
+                .andExpect(jsonPath("$.errorCode").value("ERR-TASK-005"));
     }
 
     @Test
-    @DisplayName("認可: 他人タスクの削除は PERM-TASK-403-DEL を返す")
+    @DisplayName("認可: 他人タスクの削除は ERR-TASK-006 を返す")
     void deleteForbiddenTaskReturnsTaskPermissionCode() throws Exception {
         User creator = createUser("Creator", "creator@example.com", "password123");
         User outsider = createUser("Outsider", "outsider@example.com", "password123");
@@ -299,7 +299,7 @@ class MvpApiIntegrationTests {
         mockMvc.perform(delete("/api/tasks/{taskId}", hiddenTask.getId())
                         .header("Authorization", bearer(token)))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("PERM-TASK-403-DEL"));
+                .andExpect(jsonPath("$.errorCode").value("ERR-TASK-006"));
     }
 
     /**

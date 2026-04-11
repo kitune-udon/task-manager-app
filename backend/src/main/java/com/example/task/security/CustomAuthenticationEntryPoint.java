@@ -37,11 +37,12 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
             errorCode = ErrorCode.AUTH_001.getCode();
         }
 
-        String message = switch (errorCode) {
-            case "AUTH-003" -> ErrorCode.AUTH_003.getDefaultMessage();
-            case "AUTH-004" -> ErrorCode.AUTH_004.getDefaultMessage();
-            default -> ErrorCode.AUTH_001.getDefaultMessage();
-        };
+        String message = ErrorCode.AUTH_001.getDefaultMessage();
+        if (ErrorCode.AUTH_003.getCode().equals(errorCode)) {
+            message = ErrorCode.AUTH_003.getDefaultMessage();
+        } else if (ErrorCode.AUTH_004.getCode().equals(errorCode)) {
+            message = ErrorCode.AUTH_004.getDefaultMessage();
+        }
 
         // 認証失敗理由を統一フォーマットに詰め替えて返却する。
         ErrorResponse body = ErrorResponse.builder()

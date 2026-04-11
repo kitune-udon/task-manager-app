@@ -1,5 +1,6 @@
 package com.example.task.security;
 
+import com.example.task.exception.ErrorCode;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -54,13 +55,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             username = jwtUtil.extractUsername(jwt);
         } catch (ExpiredJwtException ex) {
             // 期限切れは専用エラーコードを付与して認証エントリポイントへ委譲する。
-            request.setAttribute("authErrorCode", "AUTH-004");
+            request.setAttribute("authErrorCode", ErrorCode.AUTH_004.getCode());
             authenticationEntryPoint.commence(request, response,
                     new InsufficientAuthenticationException("Token expired", ex));
             return;
         } catch (JwtException | IllegalArgumentException ex) {
             // 署名不正や形式不備も同じく統一レスポンスで返す。
-            request.setAttribute("authErrorCode", "AUTH-003");
+            request.setAttribute("authErrorCode", ErrorCode.AUTH_003.getCode());
             authenticationEntryPoint.commence(request, response,
                     new InsufficientAuthenticationException("Invalid token", ex));
             return;
