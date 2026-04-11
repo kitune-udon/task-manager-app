@@ -2,6 +2,7 @@ package com.example.task.security;
 
 import com.example.task.dto.common.ErrorResponse;
 import com.example.task.exception.ErrorCode;
+import com.example.task.logging.StructuredLogService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -21,14 +22,30 @@ import java.time.OffsetDateTime;
 public class CustomAccessDeniedHandler implements AccessDeniedHandler {
 
     private final ObjectMapper objectMapper;
+    private final StructuredLogService structuredLogService;
 
-    public CustomAccessDeniedHandler(ObjectMapper objectMapper) {
+    public CustomAccessDeniedHandler(
+            ObjectMapper objectMapper,
+            StructuredLogService structuredLogService
+    ) {
         this.objectMapper = objectMapper;
+        this.structuredLogService = structuredLogService;
     }
 
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response,
                        AccessDeniedException accessDeniedException) throws IOException {
+        var fields = structuredLogService.requestFields(
+                request,
+                HttpStatus.FORBIDDEN.value(),
+                false,
+                false,
+                true
+        );
+        fields.put("errorCode", ErrorCode.AUTH_005.getCode());
+        fields.put("safeMessage", ErrorCode.AUTH_005.getDefaultMessage());
+        structuredLogService.warnApplication("LOG-SYS-002", "業務エラー応答", fields);
+
         // 権限制御エラーも通常の業務エラーと同じ JSON 形式に揃える。
         ErrorResponse body = ErrorResponse.builder()
                 .timestamp(OffsetDateTime.now())

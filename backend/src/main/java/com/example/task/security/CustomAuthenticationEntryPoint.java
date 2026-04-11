@@ -2,6 +2,7 @@ package com.example.task.security;
 
 import com.example.task.dto.common.ErrorResponse;
 import com.example.task.exception.ErrorCode;
+import com.example.task.logging.StructuredLogService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -21,9 +22,14 @@ import java.time.OffsetDateTime;
 public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
     private final ObjectMapper objectMapper;
+    private final StructuredLogService structuredLogService;
 
-    public CustomAuthenticationEntryPoint(ObjectMapper objectMapper) {
+    public CustomAuthenticationEntryPoint(
+            ObjectMapper objectMapper,
+            StructuredLogService structuredLogService
+    ) {
         this.objectMapper = objectMapper;
+        this.structuredLogService = structuredLogService;
     }
 
     @Override
@@ -42,6 +48,18 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
             message = ErrorCode.AUTH_003.getDefaultMessage();
         } else if (ErrorCode.AUTH_004.getCode().equals(errorCode)) {
             message = ErrorCode.AUTH_004.getDefaultMessage();
+        }
+
+        if (ErrorCode.AUTH_001.getCode().equals(errorCode)) {
+            var fields = structuredLogService.requestFields(
+                    request,
+                    HttpStatus.UNAUTHORIZED.value(),
+                    false,
+                    true,
+                    false
+            );
+            fields.put("errorCode", errorCode);
+            structuredLogService.warnSecurity("LOG-AUTH-006", "未認証アクセス", fields);
         }
 
         // 認証失敗理由を統一フォーマットに詰め替えて返却する。

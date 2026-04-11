@@ -5,6 +5,9 @@ import com.example.task.dto.TaskCreateRequest;
 import com.example.task.dto.TaskUpdateRequest;
 import com.example.task.dto.common.ErrorDetail;
 import com.example.task.dto.common.ErrorResponse;
+import com.example.task.logging.RequestLogContext;
+import com.example.task.logging.StructuredLogJsonFormatter;
+import com.example.task.logging.StructuredLogService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 
@@ -25,6 +29,17 @@ import java.util.Objects;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private final StructuredLogService structuredLogService;
+    private final RequestLogContext requestLogContext;
+
+    public GlobalExceptionHandler(
+            StructuredLogService structuredLogService,
+            RequestLogContext requestLogContext
+    ) {
+        this.structuredLogService = structuredLogService;
+        this.requestLogContext = requestLogContext;
+    }
 
     /**
      * Bean Validation の項目エラーをフィールド単位の詳細付きで返す。
@@ -50,7 +65,8 @@ public class GlobalExceptionHandler {
                 errorCode.getCode(),
                 errorCode.getDefaultMessage(),
                 details,
-                request
+                request,
+                ex
         );
     }
 
@@ -67,7 +83,8 @@ public class GlobalExceptionHandler {
                 ErrorCode.AUTH_002.getCode(),
                 ErrorCode.AUTH_002.getDefaultMessage(),
                 null,
-                request
+                request,
+                ex
         );
     }
 
@@ -77,7 +94,7 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         ErrorCode code = ex.getErrorCode();
-        return build(code.getHttpStatus(), code.getCode(), ex.getMessage(), null, request);
+        return build(code.getHttpStatus(), code.getCode(), ex.getMessage(), null, request, ex);
     }
 
     @ExceptionHandler(ConflictException.class)
@@ -86,7 +103,7 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         ErrorCode code = ex.getErrorCode();
-        return build(code.getHttpStatus(), code.getCode(), ex.getMessage(), null, request);
+        return build(code.getHttpStatus(), code.getCode(), ex.getMessage(), null, request, ex);
     }
 
     @ExceptionHandler(BusinessException.class)
@@ -95,7 +112,7 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         ErrorCode code = ex.getErrorCode();
-        return build(code.getHttpStatus(), code.getCode(), ex.getMessage(), null, request);
+        return build(code.getHttpStatus(), code.getCode(), ex.getMessage(), null, request, ex);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
@@ -108,7 +125,8 @@ public class GlobalExceptionHandler {
                 ErrorCode.AUTH_005.getCode(),
                 ErrorCode.AUTH_005.getDefaultMessage(),
                 null,
-                request
+                request,
+                ex
         );
     }
 
@@ -123,7 +141,8 @@ public class GlobalExceptionHandler {
                 ErrorCode.SYS_DB_001.getCode(),
                 ErrorCode.SYS_DB_001.getDefaultMessage(),
                 null,
-                request
+                request,
+                ex
         );
     }
 
@@ -139,7 +158,8 @@ public class GlobalExceptionHandler {
                 resolution.errorCode().getCode(),
                 resolution.errorCode().getDefaultMessage(),
                 resolution.details(),
-                request
+                request,
+                ex
         );
     }
 
@@ -153,7 +173,8 @@ public class GlobalExceptionHandler {
                 ErrorCode.SYS_999.getCode(),
                 ErrorCode.SYS_999.getDefaultMessage(),
                 null,
-                request
+                request,
+                ex
         );
     }
 
@@ -165,8 +186,11 @@ public class GlobalExceptionHandler {
             String errorCode,
             String message,
             List<ErrorDetail> details,
-            HttpServletRequest request
+            HttpServletRequest request,
+            Exception ex
     ) {
+        logResponse(status, errorCode, message, details, request, ex);
+
         ErrorResponse body = ErrorResponse.builder()
                 .timestamp(OffsetDateTime.now())
                 .status(status.value())
@@ -177,6 +201,73 @@ public class GlobalExceptionHandler {
                 .requestId((String) request.getAttribute("requestId"))
                 .build();
         return ResponseEntity.status(status).body(body);
+    }
+
+    private void logResponse(
+            HttpStatus status,
+            String errorCode,
+            String message,
+            List<ErrorDetail> details,
+            HttpServletRequest request,
+            Exception ex
+    ) {
+        if (status.is5xxServerError()) {
+            LinkedHashMap<String, Object> fields = structuredLogService.requestFields(
+                    request,
+                    status.value(),
+                    false,
+                    false,
+                    true
+            );
+            fields.put("errorCode", errorCode);
+            fields.put("safeMessage", message);
+            fields.put("exceptionClass", ex != null ? ex.getClass().getName() : Exception.class.getName());
+            if (ex != null) {
+                fields.put("stackTrace", StructuredLogJsonFormatter.stackTrace(ex));
+            }
+            structuredLogService.errorApplication("LOG-SYS-001", "アプリ例外", fields);
+            return;
+        }
+
+        if (!status.is4xxClientError()) {
+            return;
+        }
+
+        if (isRegisterValidationFailure(request, status)) {
+            LinkedHashMap<String, Object> fields = structuredLogService.requestFields(
+                    request,
+                    status.value(),
+                    false,
+                    true,
+                    false
+            );
+            fields.put("errorCode", errorCode);
+            fields.put("safeMessage", message);
+            if (details != null && !details.isEmpty()) {
+                fields.put("details", details);
+            }
+            requestLogContext.suppressSystem4xxLog(request);
+            structuredLogService.warnSecurity("LOG-AUTH-005", "ユーザー登録失敗", fields);
+            return;
+        }
+
+        if (requestLogContext.shouldSkipSystem4xxLog(request)) {
+            return;
+        }
+
+        LinkedHashMap<String, Object> fields = structuredLogService.requestFields(
+                request,
+                status.value(),
+                false,
+                false,
+                true
+        );
+        fields.put("errorCode", errorCode);
+        fields.put("safeMessage", message);
+        if (details != null && !details.isEmpty()) {
+            fields.put("details", details);
+        }
+        structuredLogService.warnApplication("LOG-SYS-002", "業務エラー応答", fields);
     }
 
     /**
@@ -249,6 +340,10 @@ public class GlobalExceptionHandler {
 
     private boolean hasField(List<ErrorDetail> details, String fieldName) {
         return details.stream().anyMatch(detail -> fieldName.equals(detail.getField()));
+    }
+
+    private boolean isRegisterValidationFailure(HttpServletRequest request, HttpStatus status) {
+        return status == HttpStatus.BAD_REQUEST && "/api/auth/register".equals(request.getRequestURI());
     }
 
     private ErrorDetail detail(String field, String message) {

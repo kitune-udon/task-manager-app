@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <property name="ROOT_CONSOLE_PATTERN"
+              value="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] %logger{36} - %msg%n"/>
+
+    <appender name="ROOT_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${ROOT_CONSOLE_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="STRUCTURED_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="application" level="DEBUG" additivity="false">
+        <appender-ref ref="STRUCTURED_CONSOLE"/>
+    </logger>
+
+    <logger name="security" level="DEBUG" additivity="false">
+        <appender-ref ref="STRUCTURED_CONSOLE"/>
+    </logger>
+
+    <logger name="audit" level="DEBUG" additivity="false">
+        <appender-ref ref="STRUCTURED_CONSOLE"/>
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="ROOT_CONSOLE"/>
+    </root>
+</configuration>

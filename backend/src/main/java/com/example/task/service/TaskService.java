@@ -12,14 +12,19 @@ import com.example.task.entity.User;
 import com.example.task.exception.BusinessException;
 import com.example.task.exception.ErrorCode;
 import com.example.task.exception.ResourceNotFoundException;
+import com.example.task.logging.StructuredLogService;
 import com.example.task.repository.TaskRepository;
 import com.example.task.repository.UserRepository;
 import com.example.task.security.CurrentUserProvider;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * タスクの作成、参照、更新、削除と権限制御をまとめるサービス。
@@ -30,15 +35,18 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final StructuredLogService structuredLogService;
 
     public TaskService(
             TaskRepository taskRepository,
             UserRepository userRepository,
-            CurrentUserProvider currentUserProvider
+            CurrentUserProvider currentUserProvider,
+            StructuredLogService structuredLogService
     ) {
         this.taskRepository = taskRepository;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
+        this.structuredLogService = structuredLogService;
     }
 
     /**
@@ -57,6 +65,7 @@ public class TaskService {
                 .build();
 
         Task saved = taskRepository.save(task);
+        logTaskCreated(saved.getId());
         return toDetailResponse(saved);
     }
 
@@ -93,6 +102,7 @@ public class TaskService {
         Long currentUserId = currentUserProvider.getCurrentUserId();
         Task task = getTaskEntity(taskId);
         authorizeTaskUpdate(task, currentUserId);
+        List<String> changedFields = resolveChangedFields(task, request);
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
         task.setStatus(request.getStatus());
@@ -101,6 +111,7 @@ public class TaskService {
         task.setAssignedUser(resolveAssignedUser(request.getAssignedUserId()));
 
         Task saved = taskRepository.save(task);
+        logTaskUpdated(saved.getId(), changedFields);
         return toDetailResponse(saved);
     }
 
@@ -113,6 +124,7 @@ public class TaskService {
         Task task = getTaskEntity(taskId);
         authorizeTaskDelete(task, currentUserId);
         taskRepository.delete(task);
+        logTaskDeleted(taskId);
     }
 
     /**
@@ -269,5 +281,70 @@ public class TaskService {
                 .id(user.getId())
                 .name(user.getName())
                 .build();
+    }
+
+    private void logTaskCreated(Long taskId) {
+        LinkedHashMap<String, Object> fields = structuredLogService.currentRequestFields(
+                HttpStatus.CREATED.value(),
+                true,
+                false,
+                false
+        );
+        fields.put("taskId", taskId);
+        structuredLogService.infoAudit("LOG-TASK-001", "タスク作成成功", fields);
+    }
+
+    private void logTaskUpdated(Long taskId, List<String> changedFields) {
+        LinkedHashMap<String, Object> fields = structuredLogService.currentRequestFields(
+                HttpStatus.OK.value(),
+                true,
+                false,
+                false
+        );
+        fields.put("taskId", taskId);
+        if (!changedFields.isEmpty()) {
+            fields.put("changedFields", changedFields);
+        }
+        structuredLogService.infoAudit("LOG-TASK-002", "タスク更新成功", fields);
+    }
+
+    private void logTaskDeleted(Long taskId) {
+        LinkedHashMap<String, Object> fields = structuredLogService.currentRequestFields(
+                HttpStatus.NO_CONTENT.value(),
+                true,
+                false,
+                false
+        );
+        fields.put("taskId", taskId);
+        structuredLogService.infoAudit("LOG-TASK-003", "タスク削除成功", fields);
+    }
+
+    private List<String> resolveChangedFields(Task task, TaskUpdateRequest request) {
+        List<String> changedFields = new ArrayList<>();
+
+        if (!Objects.equals(task.getTitle(), request.getTitle())) {
+            changedFields.add("title");
+        }
+        if (!Objects.equals(task.getDescription(), request.getDescription())) {
+            changedFields.add("description");
+        }
+        if (!Objects.equals(task.getStatus(), request.getStatus())) {
+            changedFields.add("status");
+        }
+        if (!Objects.equals(task.getPriority(), request.getPriority())) {
+            changedFields.add("priority");
+        }
+        if (!Objects.equals(task.getDueDate(), request.getDueDate())) {
+            changedFields.add("dueDate");
+        }
+        if (!Objects.equals(extractUserId(task.getAssignedUser()), request.getAssignedUserId())) {
+            changedFields.add("assignedUserId");
+        }
+
+        return changedFields;
+    }
+
+    private Long extractUserId(User user) {
+        return user != null ? user.getId() : null;
     }
 }

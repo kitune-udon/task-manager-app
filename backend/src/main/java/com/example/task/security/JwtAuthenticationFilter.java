@@ -1,6 +1,7 @@
 package com.example.task.security;
 
 import com.example.task.exception.ErrorCode;
+import com.example.task.logging.StructuredLogService;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -25,13 +26,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
+    private final StructuredLogService structuredLogService;
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil,
                                    CustomUserDetailsService userDetailsService,
-                                   CustomAuthenticationEntryPoint authenticationEntryPoint) {
+                                   CustomAuthenticationEntryPoint authenticationEntryPoint,
+                                   StructuredLogService structuredLogService) {
         this.jwtUtil = jwtUtil;
         this.userDetailsService = userDetailsService;
         this.authenticationEntryPoint = authenticationEntryPoint;
+        this.structuredLogService = structuredLogService;
     }
 
     @Override
@@ -56,12 +60,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         } catch (ExpiredJwtException ex) {
             // 期限切れは専用エラーコードを付与して認証エントリポイントへ委譲する。
             request.setAttribute("authErrorCode", ErrorCode.AUTH_004.getCode());
+            logJwtValidationFailure(request, ErrorCode.AUTH_004);
             authenticationEntryPoint.commence(request, response,
                     new InsufficientAuthenticationException("Token expired", ex));
             return;
         } catch (JwtException | IllegalArgumentException ex) {
             // 署名不正や形式不備も同じく統一レスポンスで返す。
             request.setAttribute("authErrorCode", ErrorCode.AUTH_003.getCode());
+            logJwtValidationFailure(request, ErrorCode.AUTH_003);
             authenticationEntryPoint.commence(request, response,
                     new InsufficientAuthenticationException("Invalid token", ex));
             return;
@@ -89,5 +95,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void logJwtValidationFailure(HttpServletRequest request, ErrorCode errorCode) {
+        var fields = structuredLogService.requestFields(
+                request,
+                errorCode.getHttpStatus().value(),
+                false,
+                true,
+                false
+        );
+        fields.put("errorCode", errorCode.getCode());
+        fields.put("safeMessage", errorCode.getDefaultMessage());
+        structuredLogService.warnSecurity("LOG-AUTH-003", "JWT検証失敗", fields);
     }
 }
