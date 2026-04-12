@@ -1,0 +1,21 @@
+# Final adjustment notes (revised)
+
+- Workflow file names are unified to:
+  - `.github/workflows/ci.yml`
+  - `.github/workflows/deploy-backend-prd.yml`
+  - `.github/workflows/deploy-frontend-prd.yml`
+- The OIDC trust policy trusts only `repo:kitune-udon/task-manager-app:environment:production`.
+- Branch restriction is enforced by GitHub Environment `production` with deployment branch rule `develop` only.
+- Backend deploy workflow now prints `describe-environments` and `describe-events` on failure.
+- Fixed production values are no longer hard-coded in deploy workflows. Register them as `production` environment variables.
+- The backend artifact bucket must be created before the backend deploy workflow is used.
+- Backend Gradle project name is `task`, so the bootJar name is `task-0.0.1-SNAPSHOT.jar`.
+- Frontend uses `npm` with `package-lock.json` and Vite 8, so the workflow uses Node `22.12.0`.
+- Backend deploy verification required additional AWS permissions beyond the initial minimum draft:
+  - Elastic Beanstalk managed S3 bucket bootstrap and object operations
+  - CloudFormation stack read access for `awseb-*` / `eb-*`
+  - Auto Scaling read access and process control
+  - EC2 launch template read access
+  - CloudWatch Logs read / basic management for `/aws/elasticbeanstalk/*`
+- `deploy-backend-prd.yml` now fails fast if Elastic Beanstalk emits deployment failure events or returns to `Ready` on an unexpected `VersionLabel`.
+- If `production` uses a single reviewer for initial verification, `Prevent self-review` may need to be disabled temporarily and then re-enabled after the first successful end-to-end deploy check.
