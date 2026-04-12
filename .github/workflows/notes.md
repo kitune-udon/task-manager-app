@@ -1,21 +1,21 @@
-# Final adjustment notes (revised)
+# 最終調整メモ（改訂版）
 
-- Workflow file names are unified to:
+- workflow ファイル名は以下に統一した。
   - `.github/workflows/ci.yml`
   - `.github/workflows/deploy-backend-prd.yml`
   - `.github/workflows/deploy-frontend-prd.yml`
-- The OIDC trust policy trusts only `repo:kitune-udon/task-manager-app:environment:production`.
-- Branch restriction is enforced by GitHub Environment `production` with deployment branch rule `develop` only.
-- Backend deploy workflow now prints `describe-environments` and `describe-events` on failure.
-- Fixed production values are no longer hard-coded in deploy workflows. Register them as `production` environment variables.
-- The backend artifact bucket must be created before the backend deploy workflow is used.
-- Backend Gradle project name is `task`, so the bootJar name is `task-0.0.1-SNAPSHOT.jar`.
-- Frontend uses `npm` with `package-lock.json` and Vite 8, so the workflow uses Node `22.12.0`.
-- Backend deploy verification required additional AWS permissions beyond the initial minimum draft:
-  - Elastic Beanstalk managed S3 bucket bootstrap and object operations
-  - CloudFormation stack read access for `awseb-*` / `eb-*`
-  - Auto Scaling read access and process control
-  - EC2 launch template read access
-  - CloudWatch Logs read / basic management for `/aws/elasticbeanstalk/*`
-- `deploy-backend-prd.yml` now fails fast if Elastic Beanstalk emits deployment failure events or returns to `Ready` on an unexpected `VersionLabel`.
-- If `production` uses a single reviewer for initial verification, `Prevent self-review` may need to be disabled temporarily and then re-enabled after the first successful end-to-end deploy check.
+- OIDC trust policy は `repo:kitune-udon/task-manager-app:environment:production` のみを信頼する。
+- ブランチ制限は GitHub Environment `production` 側で行い、deploy 対象は `develop` のみにする。
+- backend deploy workflow は失敗時に `describe-environments` と `describe-events` を出力する。
+- 本番向けの固定値は workflow に直書きせず、`production` Environment Variables に登録する。
+- backend 用 artifact バケットは、backend deploy workflow を使う前に作成しておく必要がある。
+- backend の Gradle project 名は `task` のため、bootJar 名は `task-0.0.1-SNAPSHOT.jar` になる。
+- frontend は `npm`、`package-lock.json`、Vite 8 前提のため、workflow では Node `22.12.0` を使う。
+- backend deploy の検証では、初期ドラフトより追加の AWS 権限が必要だった。
+  - Elastic Beanstalk 管理 S3 バケットの bootstrap とオブジェクト操作
+  - `awseb-*` / `eb-*` CloudFormation stack の参照権限
+  - Auto Scaling の参照権限とプロセス制御権限
+  - EC2 Launch Template の参照権限
+  - `/aws/elasticbeanstalk/*` 向け CloudWatch Logs の参照・基本管理権限
+- `deploy-backend-prd.yml` は、Elastic Beanstalk が deploy failure event を出した場合や、期待しない `VersionLabel` のまま `Ready` に戻った場合に即失敗するよう改善した。
+- `production` を単独 reviewer で初回検証する場合は、`Prevent self-review` を一時的に無効化する必要があることがある。初回の疎通確認が終わったら再度有効化する。
