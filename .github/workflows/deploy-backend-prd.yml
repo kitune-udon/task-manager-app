@@ -150,7 +150,11 @@ jobs:
 
       # デプロイ後、environment が Ready / Green / Ok になるまで待機する。
       # 途中状態を標準出力へ出すので、Actions のログから進捗確認できる。
+      # あわせて「期待 version label に切り替わったか」も確認し、
+      # 旧版へ戻って Green になったケースを成功扱いしないようにする。
       - name: Wait until environment is ready
+        env:
+          EXPECTED_VERSION_LABEL: ${{ steps.version.outputs.version_label }}
         run: |
           python3 - <<'PY'
           import json
@@ -158,28 +162,85 @@ jobs:
           import subprocess
           import sys
           import time
+          from datetime import datetime, timezone
 
           env_name = os.environ["EB_ENVIRONMENT_NAME"]
+          expected_version = os.environ["EXPECTED_VERSION_LABEL"]
           timeout_sec = 1800
           interval_sec = 20
           start = time.time()
+          deploy_started_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+          failure_markers = (
+              "Failed to deploy application",
+              "Application update failed",
+              "Failed Environment update activity",
+              "Command failed on all instances",
+              "Incorrect application version found",
+          )
 
           while True:
               cmd = [
                   "aws", "elasticbeanstalk", "describe-environments",
                   "--environment-names", env_name,
-                  "--query", "Environments[0].{Status:Status,Health:Health,HealthStatus:HealthStatus,VersionLabel:VersionLabel}",
+                  "--query", "Environments[0].{Status:Status,Health:Health,HealthStatus:HealthStatus,VersionLabel:VersionLabel,AbortableOperationInProgress:AbortableOperationInProgress}",
                   "--output", "json"
               ]
               result = subprocess.check_output(cmd, text=True)
               env = json.loads(result)
               print(env)
 
-              if env.get("Status") == "Ready" and env.get("Health") == "Green" and env.get("HealthStatus") == "Ok":
+              events_cmd = [
+                  "aws", "elasticbeanstalk", "describe-events",
+                  "--environment-name", env_name,
+                  "--start-time", deploy_started_at,
+                  "--query", "Events[].Message",
+                  "--output", "json"
+              ]
+              event_messages = json.loads(subprocess.check_output(events_cmd, text=True))
+              matched_failure = next(
+                  (
+                      marker
+                      for message in event_messages
+                      for marker in failure_markers
+                      if marker in message
+                  ),
+                  None
+              )
+
+              if matched_failure:
+                  print(
+                      "Elastic Beanstalk reported a deployment failure event after this rollout started: "
+                      f"{matched_failure}",
+                      file=sys.stderr
+                  )
+                  sys.exit(1)
+
+              if (
+                  env.get("Status") == "Ready"
+                  and env.get("Health") == "Green"
+                  and env.get("HealthStatus") == "Ok"
+                  and env.get("VersionLabel") == expected_version
+              ):
                   break
 
+              if (
+                  env.get("Status") == "Ready"
+                  and not env.get("AbortableOperationInProgress", False)
+                  and env.get("VersionLabel") != expected_version
+              ):
+                  print(
+                      "Environment returned to Ready without switching to the expected version label. "
+                      f"expected={expected_version} actual={env.get('VersionLabel')}",
+                      file=sys.stderr
+                  )
+                  sys.exit(1)
+
               if time.time() - start > timeout_sec:
-                  print("Timed out waiting for Elastic Beanstalk environment to become healthy.", file=sys.stderr)
+                  print(
+                      "Timed out waiting for Elastic Beanstalk environment to become healthy. "
+                      f"expected={expected_version} actual={env.get('VersionLabel')}",
+                      file=sys.stderr
+                  )
                   sys.exit(1)
 
               time.sleep(interval_sec)
