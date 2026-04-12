@@ -26,6 +26,23 @@ jobs:
     name: deploy backend to production
     runs-on: ubuntu-latest
 
+    # deploy 前にも backend テストを通すため、本番 deploy job 側にも
+    # PostgreSQL service を用意して CI と同じ条件で検証する。
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: taskdb
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d taskdb"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     # GitHub Environment を明示することで、production の承認ルールと
     # environment-level variables / secrets をこの job で使えるようにする。
     environment:
@@ -41,6 +58,9 @@ jobs:
       EB_S3_BUCKET: ${{ vars.EB_S3_BUCKET }}
       VERSION_LABEL_PREFIX: ${{ vars.VERSION_LABEL_PREFIX }}
       BACKEND_JAR_NAME: ${{ vars.BACKEND_JAR_NAME }}
+      DB_URL: jdbc:postgresql://localhost:5432/taskdb
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
 
     # backend 配下で Gradle を実行するため、run step の作業ディレクトリを固定する。
     defaults:
