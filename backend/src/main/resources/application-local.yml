@@ -13,7 +13,7 @@ spring:
     time-zone: Asia/Tokyo
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${PORT:${SERVER_PORT:8080}}
 
 app:
   logging:

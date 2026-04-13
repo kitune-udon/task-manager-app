@@ -2,15 +2,28 @@ import axios from 'axios'
 import { clearAuthToken, getAuthToken } from './authStorage'
 
 const DEFAULT_API_BASE_URL = 'http://localhost:8080'
+const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1'])
+
+function trimTrailingSlash(value: string) {
+  return value.endsWith('/') ? value.slice(0, -1) : value
+}
 
 function resolveApiBaseUrl() {
   const configuredValue = import.meta.env.VITE_API_BASE_URL?.trim()
 
-  if (!configuredValue) {
-    return DEFAULT_API_BASE_URL
+  if (configuredValue) {
+    return trimTrailingSlash(configuredValue)
   }
 
-  return configuredValue.endsWith('/') ? configuredValue.slice(0, -1) : configuredValue
+  if (typeof window !== 'undefined') {
+    const { hostname, origin } = window.location
+
+    if (!LOCAL_HOSTNAMES.has(hostname)) {
+      return trimTrailingSlash(origin)
+    }
+  }
+
+  return DEFAULT_API_BASE_URL
 }
 
 export const API_BASE_URL = resolveApiBaseUrl()
