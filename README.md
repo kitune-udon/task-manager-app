@@ -284,7 +284,23 @@ flowchart LR
 
 ## セットアップ
 
-### Frontend
+### 前提
+
+- Java 17
+- Node.js 22.12 以上
+- Docker / Docker Compose
+
+### 1. PostgreSQL を Docker で起動する
+
+```bash
+cd backend
+docker-compose up -d
+```
+
+起動後、`localhost:5432` に PostgreSQL が立ち上がります。  
+ローカル開発では、backend の `application.yml` がこの DB を参照する前提です。
+
+### 2. Frontend を起動する
 
 ```bash
 cd frontend
@@ -292,7 +308,7 @@ npm ci
 npm run dev
 ```
 
-### Backend
+### 3. Backend を起動する
 
 ```bash
 cd backend
@@ -300,9 +316,29 @@ cd backend
 ./gradlew bootRun
 ```
 
+### 4. アクセスする
+
+- frontend: `http://localhost:5173`
+- backend: `http://localhost:8080`
+
+### DB を停止したい場合
+
+```bash
+cd backend
+docker-compose down
+```
+
+DB データごと初期化したい場合は、volume も削除します。
+
+```bash
+cd backend
+docker-compose down -v
+```
+
 ### 補足
 
 - frontend / backend は別プロセスで起動します
+- backend 起動前に PostgreSQL を起動しておく想定です
 - 本番 deploy はローカルから直接行わず、GitHub Actions の手順を使います
 
 ## 関連資料
