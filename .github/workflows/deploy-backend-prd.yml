@@ -111,7 +111,7 @@ jobs:
           mkdir -p deploy
           cp build/libs/${BACKEND_JAR_NAME} deploy/
           cat > deploy/Procfile <<EOF
-          web: java -Dserver.port=\$PORT -jar ${BACKEND_JAR_NAME}
+          web: java -Dserver.port=\$SERVER_PORT -jar ${BACKEND_JAR_NAME}
           EOF
           cd deploy
           zip -r ../backend-eb-bundle.zip .
