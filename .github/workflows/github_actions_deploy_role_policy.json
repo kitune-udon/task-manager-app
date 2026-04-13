@@ -127,11 +127,17 @@
       "Resource": "arn:aws:logs:*:*:log-group:/aws/elasticbeanstalk/*"
     },
     {
-      "Sid": "CloudFrontInvalidate",
+      "Sid": "CloudFrontDistributionManagement",
       "Effect": "Allow",
       "Action": [
         "cloudfront:CreateInvalidation",
-        "cloudfront:GetDistribution"
+        "cloudfront:GetDistribution",
+        "cloudfront:GetDistributionConfig",
+        "cloudfront:UpdateDistribution",
+        "cloudfront:CreateFunction",
+        "cloudfront:DescribeFunction",
+        "cloudfront:UpdateFunction",
+        "cloudfront:PublishFunction"
       ],
       "Resource": "*"
     }

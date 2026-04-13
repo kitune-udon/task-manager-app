@@ -34,3 +34,5 @@
 - OIDC trust policy をシンプルかつ厳格に保つため、`production` Environment の deploy 対象ブランチは `develop` のみに制限する。
 - 単独作業者が初回検証を行う場合は、`Prevent self-review` を一時的に無効化してもよい。backend / frontend の初回 deploy 検証が終わったら再度有効化する。
 - 初回の Elastic Beanstalk 環境 bootstrap では、Elastic Beanstalk / S3 / CloudFront の最小権限だけでは不足する場合がある。`github_actions_deploy_role_policy.json` と実際の inline policy は常にそろえて管理する。
+- frontend deploy workflow は `taskflow-prd-spa-router` CloudFront Function と distribution 設定も整合させる。
+- そのため deploy role には `CreateInvalidation / GetDistribution / GetDistributionConfig / UpdateDistribution / CreateFunction / DescribeFunction / UpdateFunction / PublishFunction` が必要。

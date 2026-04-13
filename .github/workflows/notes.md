@@ -11,11 +11,14 @@
 - backend 用 artifact バケットは、backend deploy workflow を使う前に作成しておく必要がある。
 - backend の Gradle project 名は `task` のため、bootJar 名は `task-0.0.1-SNAPSHOT.jar` になる。
 - frontend は `npm`、`package-lock.json`、Vite 8 前提のため、workflow では Node `22.12.0` を使う。
+- frontend deploy workflow は、S3 への静的ファイル反映に加えて CloudFront Function による SPA deep link rewrite も管理する。
+- API の 401/403/404 を `index.html` に誤変換しないため、distribution 全体の `403/404 -> /index.html -> 200` CustomErrorResponses には依存しない。
 - backend deploy の検証では、初期ドラフトより追加の AWS 権限が必要だった。
   - Elastic Beanstalk 管理 S3 バケットの bootstrap とオブジェクト操作
   - `awseb-*` / `eb-*` CloudFormation stack の参照権限
   - Auto Scaling の参照権限とプロセス制御権限
   - EC2 Launch Template の参照権限
   - `/aws/elasticbeanstalk/*` 向け CloudWatch Logs の参照・基本管理権限
+- frontend deploy では CloudFront distribution / function 更新権限も必要だった。
 - `deploy-backend-prd.yml` は、Elastic Beanstalk が deploy failure event を出した場合や、期待しない `VersionLabel` のまま `Ready` に戻った場合に即失敗するよう改善した。
 - `production` を単独 reviewer で初回検証する場合は、`Prevent self-review` を一時的に無効化する必要があることがある。初回の疎通確認が終わったら再度有効化する。

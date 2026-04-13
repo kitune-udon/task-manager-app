@@ -38,6 +38,7 @@ jobs:
       AWS_GITHUB_ACTIONS_DEPLOY_ROLE_ARN: ${{ vars.AWS_GITHUB_ACTIONS_DEPLOY_ROLE_ARN }}
       FRONTEND_BUCKET: ${{ vars.FRONTEND_BUCKET }}
       CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+      CLOUDFRONT_SPA_FUNCTION_NAME: taskflow-prd-spa-router
 
     # frontend 配下で npm build を実行するため、作業ディレクトリを固定する。
     defaults:
@@ -87,6 +88,12 @@ jobs:
             --exclude 'index.html'
           aws s3 cp dist/index.html s3://${FRONTEND_BUCKET}/index.html \
             --cache-control 'no-cache,no-store,must-revalidate'
+
+      # SPA deep link の rewrite は CloudFront Function で扱い、
+      # distribution 全体の 403/404 -> index.html 変換には依存しない。
+      # これにより /api/* の 401/403/404 を画面配信用 HTML へ誤変換しない。
+      - name: Ensure CloudFront SPA routing configuration
+        run: node ./scripts/ensure-cloudfront-spa-routing.mjs
 
       # CloudFront のキャッシュを失効し、新しい frontend をすぐ配信できるようにする。
       - name: Create CloudFront invalidation
