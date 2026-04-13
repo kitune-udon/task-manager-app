@@ -4,7 +4,7 @@ const defaultPlaywrightJwtSecret =
   process.env.PLAYWRIGHT_JWT_SECRET ?? 'QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo0MTIzNDU2Nzg5MDEyMzQ='
 const backendCommand =
   process.env.PLAYWRIGHT_BACKEND_COMMAND ??
-  `cd ../backend && JWT_SECRET=${defaultPlaywrightJwtSecret} ./gradlew bootRun`
+  `cd ../backend && JWT_SECRET="${defaultPlaywrightJwtSecret}" ./gradlew bootRun`
 const frontendCommand = process.env.PLAYWRIGHT_FRONTEND_COMMAND ?? 'npm run dev -- --host localhost --port 5173'
 
 export default defineConfig({
