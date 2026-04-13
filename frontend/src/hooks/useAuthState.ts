@@ -37,8 +37,8 @@ export function useAuthState({ go, onUnauthorized }: Params) {
   const [token, setToken] = useState<string>(() => getAuthToken())
   const [currentUserLabel, setCurrentUserLabel] = useState<string>(() => getUserDisplayName())
 
-  const [loginEmail, setLoginEmail] = useState('tasktester@example.com')
-  const [loginPassword, setLoginPassword] = useState('password123')
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
   const [registerName, setRegisterName] = useState('')
   const [registerEmail, setRegisterEmail] = useState('')
   const [registerPassword, setRegisterPassword] = useState('')

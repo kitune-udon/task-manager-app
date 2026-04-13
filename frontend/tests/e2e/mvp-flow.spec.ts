@@ -1,6 +1,13 @@
 import { expect, test } from '@playwright/test'
 import { createE2eUser, createTaskTitle, registerAndLogin, registerUser } from './helpers'
 
+test('ログイン画面は検証用の初期値を表示しない', async ({ page }) => {
+  await page.goto('/login')
+
+  await expect(page.getByLabel(/^メールアドレス/)).toHaveValue('')
+  await expect(page.getByLabel(/^パスワード(?!確認)/)).toHaveValue('')
+})
+
 test('ログイン失敗はログイン画面内で扱われる', async ({ page }) => {
   const user = createE2eUser()
 

@@ -16,6 +16,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -38,6 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
 class MvpApiIntegrationTests {
 
     @Autowired
@@ -244,6 +246,47 @@ class MvpApiIntegrationTests {
                                 "title", "",
                                 "status", "TODO",
                                 "priority", "HIGH"
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("ERR-TASK-001"))
+                .andExpect(jsonPath("$.details[*].field", hasItems("title")));
+    }
+
+    @Test
+    @DisplayName("タスク: タイトルが101文字以上の作成は ERR-TASK-001 を返す")
+    void createTaskRejectsTitleLongerThan100Chars() throws Exception {
+        createUser("Creator", "creator@example.com", "password123");
+        String token = loginAndGetToken("creator@example.com", "password123");
+
+        mockMvc.perform(post("/api/tasks")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJson(Map.of(
+                                "title", "a".repeat(101),
+                                "description", "Too long",
+                                "status", "TODO",
+                                "priority", "HIGH"
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("ERR-TASK-001"))
+                .andExpect(jsonPath("$.details[*].field", hasItems("title")));
+    }
+
+    @Test
+    @DisplayName("タスク: タイトルが101文字以上の更新は ERR-TASK-001 を返す")
+    void updateTaskRejectsTitleLongerThan100Chars() throws Exception {
+        User creator = createUser("Creator", "creator@example.com", "password123");
+        String token = loginAndGetToken("creator@example.com", "password123");
+        Long taskId = createTask("Short Title", creator, null, TaskStatus.TODO, Priority.HIGH).getId();
+
+        mockMvc.perform(put("/api/tasks/{taskId}", taskId)
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJson(Map.of(
+                                "title", "a".repeat(101),
+                                "description", "Too long",
+                                "status", "DOING",
+                                "priority", "MEDIUM"
                         ))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("ERR-TASK-001"))
