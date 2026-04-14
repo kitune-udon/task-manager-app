@@ -49,43 +49,16 @@ function App() {
     <AuthenticatedAppView
       route={navigation.route}
       selectedTaskId={navigation.selectedTaskId}
-      activePath={tasks.activePath}
+      activePath={navigation.activePath}
       currentUserLabel={auth.currentUserLabel}
       successMessage={auth.successMessage}
       onNavigate={navigation.go}
       onLogout={handleLogout}
-      tasks={tasks.tasks}
-      filteredTasks={tasks.filteredTasks}
-      selectedTask={tasks.selectedTask}
-      taskErrorMessage={tasks.taskErrorMessage}
-      detailErrorMessage={tasks.detailErrorMessage}
-      isLoadingTasks={tasks.isLoadingTasks}
-      isLoadingDetail={tasks.isLoadingDetail}
-      isSubmittingTask={tasks.isSubmittingTask}
-      isDeleting={tasks.isDeleting}
-      statusFilter={tasks.statusFilter}
-      priorityFilter={tasks.priorityFilter}
-      commentDraft={tasks.commentDraft}
-      onCommentDraftChange={tasks.setCommentDraft}
-      onStatusFilterChange={tasks.setStatusFilter}
-      onPriorityFilterChange={tasks.setPriorityFilter}
-      onShowList={() => void tasks.actions.handleShowList()}
-      onShowCreate={tasks.actions.handleShowCreate}
-      onShowDetail={tasks.actions.handleShowDetail}
-      onShowEdit={tasks.actions.handleShowEdit}
-      onReload={() => void tasks.actions.loadTasks()}
-      onDelete={() => void tasks.actions.handleDeleteTask()}
-      createForm={tasks.createTaskForm}
-      editForm={tasks.editTaskForm}
-      onCreateSubmit={tasks.actions.handleCreateTask}
-      onEditSubmit={tasks.actions.handleEditTask}
+      taskState={tasks}
       statusOptions={STATUS_OPTIONS}
       priorityOptions={PRIORITY_OPTIONS}
       editableStatusOptions={EDITABLE_STATUS_OPTIONS}
       editablePriorityOptions={EDITABLE_PRIORITY_OPTIONS}
-      assigneeOptions={tasks.assigneeOptions}
-      isLoadingAssigneeOptions={tasks.isLoadingAssignableUsers}
-      assigneeOptionsError={tasks.assigneeOptionsError}
     />
   )
 }

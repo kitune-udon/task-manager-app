@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react'
 import type { TaskPriority, TaskStatus } from '../lib/taskApi'
-import type { AssigneeOption, TaskFormBindings } from '../hooks/useTaskState'
+import type { AssigneeOption, TaskFormBindings } from '../hooks/taskStateShared'
 import { TaskShell } from '../components/TaskShell'
 import { TaskForm } from '../components/TaskForm'
 
@@ -10,7 +10,7 @@ type Props = {
   onNavigate: (path: string) => void
   onLogout: () => void
   onShowList: () => void
-  taskErrorMessage: string
+  createErrorMessage: string
   successMessage: string
   isSubmitting: boolean
   form: TaskFormBindings
@@ -37,7 +37,7 @@ export function TaskCreatePage(props: Props) {
         </button>
       }
     >
-      {props.taskErrorMessage ? <div className="status-box error-box">{props.taskErrorMessage}</div> : null}
+      {props.createErrorMessage ? <div className="status-box error-box">{props.createErrorMessage}</div> : null}
       {props.successMessage ? <div className="status-box success-box">{props.successMessage}</div> : null}
       <section className="panel section-panel form-panel">
         <TaskForm

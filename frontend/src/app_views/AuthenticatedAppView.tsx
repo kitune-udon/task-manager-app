@@ -1,12 +1,10 @@
-import type { FormEvent } from 'react'
 import type { ResolvedRoute } from '../app_navigation'
 import type { TaskPriority, TaskStatus } from '../lib/taskApi'
-import type { AssigneeOption, TaskFormBindings } from '../hooks/useTaskState'
+import type { UseTaskStateResult } from '../hooks/useTaskState'
 import { TaskCreatePage } from '../pages/TaskCreatePage'
 import { TaskDetailPage } from '../pages/TaskDetailPage'
 import { TaskEditPage } from '../pages/TaskEditPage'
 import { TaskListPage } from '../pages/TaskListPage'
-import type { TaskItem } from '../lib/taskApi'
 
 type TaskOption<T extends string> = Array<{ label: string; value: T }>
 
@@ -18,38 +16,11 @@ type Props = {
   successMessage: string
   onNavigate: (path: string, replace?: boolean) => void
   onLogout: () => void
-  tasks: TaskItem[]
-  filteredTasks: TaskItem[]
-  selectedTask: TaskItem | null
-  taskErrorMessage: string
-  detailErrorMessage: string
-  isLoadingTasks: boolean
-  isLoadingDetail: boolean
-  isSubmittingTask: boolean
-  isDeleting: boolean
-  statusFilter: string
-  priorityFilter: string
-  commentDraft: string
-  onCommentDraftChange: (value: string) => void
-  onStatusFilterChange: (value: string) => void
-  onPriorityFilterChange: (value: string) => void
-  onShowList: () => void
-  onShowCreate: () => void
-  onShowDetail: (taskId: number | string) => void
-  onShowEdit: () => void
-  onReload: () => void
-  onDelete: () => void
-  createForm: TaskFormBindings
-  editForm: TaskFormBindings
-  onCreateSubmit: (event: FormEvent<HTMLFormElement>) => void
-  onEditSubmit: (event: FormEvent<HTMLFormElement>) => void
+  taskState: UseTaskStateResult
   statusOptions: TaskOption<TaskStatus>
   priorityOptions: TaskOption<TaskPriority>
   editableStatusOptions: TaskOption<TaskStatus>
   editablePriorityOptions: TaskOption<TaskPriority>
-  assigneeOptions: AssigneeOption[]
-  isLoadingAssigneeOptions: boolean
-  assigneeOptionsError: string
 }
 
 export function AuthenticatedAppView({
@@ -60,39 +31,14 @@ export function AuthenticatedAppView({
   successMessage,
   onNavigate,
   onLogout,
-  tasks,
-  filteredTasks,
-  selectedTask,
-  taskErrorMessage,
-  detailErrorMessage,
-  isLoadingTasks,
-  isLoadingDetail,
-  isSubmittingTask,
-  isDeleting,
-  statusFilter,
-  priorityFilter,
-  commentDraft,
-  onCommentDraftChange,
-  onStatusFilterChange,
-  onPriorityFilterChange,
-  onShowList,
-  onShowCreate,
-  onShowDetail,
-  onShowEdit,
-  onReload,
-  onDelete,
-  createForm,
-  editForm,
-  onCreateSubmit,
-  onEditSubmit,
+  taskState,
   statusOptions,
   priorityOptions,
   editableStatusOptions,
   editablePriorityOptions,
-  assigneeOptions,
-  isLoadingAssigneeOptions,
-  assigneeOptionsError,
 }: Props) {
+  const { list, detail, mutation, assignableUsers, actions } = taskState
+
   switch (route.page) {
     case 'create':
       return (
@@ -101,17 +47,17 @@ export function AuthenticatedAppView({
           currentUserLabel={currentUserLabel}
           onNavigate={onNavigate}
           onLogout={onLogout}
-          onShowList={onShowList}
-          taskErrorMessage={taskErrorMessage}
+          onShowList={() => void actions.handleShowList()}
+          createErrorMessage={mutation.createErrorMessage}
           successMessage={successMessage}
-          isSubmitting={isSubmittingTask}
-          form={createForm}
-          onSubmit={onCreateSubmit}
+          isSubmitting={mutation.isSubmittingTask}
+          form={mutation.createTaskForm}
+          onSubmit={actions.handleCreateTask}
           statusOptions={editableStatusOptions}
           priorityOptions={editablePriorityOptions}
-          assigneeOptions={assigneeOptions}
-          isLoadingAssigneeOptions={isLoadingAssigneeOptions}
-          assigneeOptionsError={assigneeOptionsError}
+          assigneeOptions={assignableUsers.assigneeOptions}
+          isLoadingAssigneeOptions={assignableUsers.isLoadingAssignableUsers}
+          assigneeOptionsError={assignableUsers.assigneeOptionsError}
         />
       )
 
@@ -127,17 +73,17 @@ export function AuthenticatedAppView({
               onNavigate(`/tasks/${selectedTaskId}`)
             }
           }}
-          detailErrorMessage={detailErrorMessage}
+          detailErrorMessage={detail.detailErrorMessage}
           successMessage={successMessage}
-          isSubmitting={isSubmittingTask}
-          isLoadingDetail={isLoadingDetail}
-          form={editForm}
-          onSubmit={onEditSubmit}
+          isSubmitting={mutation.isSubmittingTask}
+          isLoadingDetail={detail.isLoadingDetail}
+          form={mutation.editTaskForm}
+          onSubmit={actions.handleEditTask}
           statusOptions={editableStatusOptions}
           priorityOptions={editablePriorityOptions}
-          assigneeOptions={assigneeOptions}
-          isLoadingAssigneeOptions={isLoadingAssigneeOptions}
-          assigneeOptionsError={assigneeOptionsError}
+          assigneeOptions={assignableUsers.assigneeOptions}
+          isLoadingAssigneeOptions={assignableUsers.isLoadingAssignableUsers}
+          assigneeOptionsError={assignableUsers.assigneeOptionsError}
         />
       )
 
@@ -148,16 +94,16 @@ export function AuthenticatedAppView({
           currentUserLabel={currentUserLabel}
           onNavigate={onNavigate}
           onLogout={onLogout}
-          onShowList={onShowList}
-          onShowEdit={onShowEdit}
-          onDelete={onDelete}
-          isDeleting={isDeleting}
-          detailErrorMessage={detailErrorMessage}
+          onShowList={() => void actions.handleShowList()}
+          onShowEdit={actions.handleShowEdit}
+          onDelete={() => void actions.handleDeleteTask()}
+          isDeleting={mutation.isDeleting}
+          detailErrorMessage={detail.detailErrorMessage}
           successMessage={successMessage}
-          isLoadingDetail={isLoadingDetail}
-          selectedTask={selectedTask}
-          commentDraft={commentDraft}
-          onCommentDraftChange={onCommentDraftChange}
+          isLoadingDetail={detail.isLoadingDetail}
+          selectedTask={detail.selectedTask}
+          commentDraft={detail.commentDraft}
+          onCommentDraftChange={detail.setCommentDraft}
         />
       )
 
@@ -169,18 +115,18 @@ export function AuthenticatedAppView({
           currentUserLabel={currentUserLabel}
           onNavigate={onNavigate}
           onLogout={onLogout}
-          onShowCreate={onShowCreate}
-          onReload={onReload}
-          onShowDetail={onShowDetail}
-          tasks={tasks}
-          filteredTasks={filteredTasks}
-          taskErrorMessage={taskErrorMessage}
+          onShowCreate={actions.handleShowCreate}
+          onReload={() => void actions.reloadTasks()}
+          onShowDetail={actions.handleShowDetail}
+          tasks={list.tasks}
+          filteredTasks={list.filteredTasks}
+          taskErrorMessage={list.taskErrorMessage}
           successMessage={successMessage}
-          isLoadingTasks={isLoadingTasks}
-          statusFilter={statusFilter}
-          priorityFilter={priorityFilter}
-          onStatusFilterChange={onStatusFilterChange}
-          onPriorityFilterChange={onPriorityFilterChange}
+          isLoadingTasks={list.isLoadingTasks}
+          statusFilter={list.statusFilter}
+          priorityFilter={list.priorityFilter}
+          onStatusFilterChange={list.setStatusFilter}
+          onPriorityFilterChange={list.setPriorityFilter}
           statusOptions={statusOptions}
           priorityOptions={priorityOptions}
         />
