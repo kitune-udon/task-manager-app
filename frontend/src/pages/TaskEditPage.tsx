@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react'
 import type { TaskPriority, TaskStatus } from '../lib/taskApi'
-import type { AssigneeOption, TaskFormBindings } from '../hooks/useTaskState'
+import type { AssigneeOption, TaskFormBindings } from '../hooks/taskStateShared'
 import { TaskShell } from '../components/TaskShell'
 import { TaskForm } from '../components/TaskForm'
 

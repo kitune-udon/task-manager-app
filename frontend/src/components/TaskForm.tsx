@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react'
 import type { TaskPriority, TaskStatus } from '../lib/taskApi'
-import type { AssigneeOption, TaskFormBindings } from '../hooks/useTaskState'
+import type { AssigneeOption, TaskFormBindings } from '../hooks/taskStateShared'
 
 type Props = {
   form: TaskFormBindings
