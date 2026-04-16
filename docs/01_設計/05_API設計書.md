@@ -126,26 +126,24 @@ Authorization: Bearer <JWT>
 
 #### タスク参照
 
-以下のいずれかを満たす場合に参照可能。
+以下の条件で参照可能。
 
-- タスク作成者
-- タスク担当者
-- ADMIN
+- 現行実装: タスク作成者またはタスク担当者
+- 将来拡張: `ADMIN` 導入時は ADMIN も許可
 
 #### タスク更新
 
-以下のいずれかを満たす場合に更新可能。
+以下の条件で更新可能。
 
-- タスク作成者
-- タスク担当者
-- ADMIN
+- 現行実装: タスク作成者またはタスク担当者
+- 将来拡張: `ADMIN` 導入時は ADMIN も許可
 
 #### タスク削除
 
-以下のいずれかを満たす場合に削除可能。
+以下の条件で削除可能。
 
-- タスク作成者
-- ADMIN
+- 現行実装: タスク作成者
+- 将来拡張: `ADMIN` 導入時は ADMIN も許可
 
 #### コメント参照 / 投稿
 
@@ -155,10 +153,10 @@ Authorization: Bearer <JWT>
 
 #### コメント更新 / 削除
 
-以下のいずれかを満たす場合に利用可能。
+以下の条件で利用可能。
 
-- コメント投稿者本人
-- ADMIN
+- 現行実装: コメント投稿者本人
+- 将来拡張: `ADMIN` 導入時は ADMIN も許可
 
 #### 添付ファイル一覧 / ダウンロード
 
@@ -174,10 +172,10 @@ Authorization: Bearer <JWT>
 
 #### 添付ファイル削除
 
-以下のいずれかを満たす場合に利用可能。
+以下の条件で利用可能。
 
-- 添付登録者本人
-- ADMIN
+- 現行実装: 添付登録者本人
+- 将来拡張: `ADMIN` 導入時は ADMIN も許可
 
 #### 通知参照 / 既読化
 
@@ -189,7 +187,8 @@ Authorization: Bearer <JWT>
 
 以下を満たす場合に利用可能。
 
-- 対象タスクを参照できること
+- 現行実装: タスク作成者またはタスク担当者
+- 将来拡張: `ADMIN` 導入時は ADMIN も許可
 
 ---
 
@@ -298,6 +297,23 @@ Authorization: Bearer <JWT>
 | field | string | エラー対象項目名 |
 | message | string | 項目別エラーメッセージ |
 
+## 4.5 更新競合制御
+
+- タスク更新APIとコメント更新APIは、クライアントが保持する `version` を受け取り、サーバー最新の `version` と比較する楽観ロック方式を採用する。
+- リクエストの `version` がサーバー最新値と一致する場合のみ更新する。
+- `version` が不一致の場合は `409 Conflict` を返却する。
+- タスク更新APIでは `ERR-TASK-007`、コメント更新APIでは `ERR-COMMENT-006` を返却する。
+- 対象が削除済みまたは未存在の場合は、競合より優先して `404 ERR-TASK-004` または `404 ERR-COMMENT-002` を返却する。
+- `version` は作成時 `0` で開始し、更新成功時に `+1` する。
+- 本フェーズでは `Idempotency-Key` は導入しない。
+
+## 4.6 冪等性方針
+
+- `PATCH /api/notifications/{notificationId}/read` は冪等とし、既読済み通知への再実行でも `200 OK` を返す。
+- `PATCH /api/notifications/read-all` は冪等とし、未読通知が0件でも `204 No Content` を返す。
+- `POST /api/tasks`、`POST /api/tasks/{taskId}/comments`、`POST /api/tasks/{taskId}/attachments` は本フェーズでは冪等化しない。
+- 作成系APIは `Idempotency-Key` を受け付けず、画面側の二重送信防止で重複作成を抑止する。
+
 ---
 
 
@@ -320,6 +336,8 @@ Authorization: Bearer <JWT>
 | タスク入力 | ERR-TASK-002 | 400 | 入力内容に誤りがあります |
 | タスク入力 | ERR-TASK-003 | 400 | 入力内容に誤りがあります |
 | ユーザー | ERR-USR-001 | 409 | メールアドレスは既に登録されています |
+| タスク | ERR-TASK-007 | 409 | 他のユーザーによりタスクが更新されました。最新状態を再読み込みしてください。 |
+| コメント | ERR-COMMENT-006 | 409 | 他のユーザーによりコメントが更新されました。最新状態を再読み込みしてください。 |
 | ユーザー | ERR-USR-002 | 404 | ユーザーが存在しません |
 | タスク | ERR-TASK-004 | 404 | タスクが存在しません |
 | タスク | ERR-TASK-005 | 403 | タスク更新権限がありません |
@@ -335,8 +353,10 @@ Authorization: Bearer <JWT>
 | 添付ファイル | ERR-FILE-004 | 403 | 添付削除権限がありません |
 | 添付ファイル | ERR-FILE-005 | 400 | ファイルサイズが上限を超えています |
 | 添付ファイル | ERR-FILE-006 | 400 | 許可されていないファイル形式です |
-| 添付ファイル | ERR-FILE-007 | 500 | ファイルの保存に失敗しました。しばらくしてから再度お試しください。 |
-| 添付ファイル | ERR-FILE-008 | 500 | ファイルの取得に失敗しました。しばらくしてから再度お試しください。 |
+| 添付ファイル | ERR-FILE-007 | 400 | 添付件数が上限を超えています |
+| 添付ファイル | ERR-FILE-008 | 400 | 添付ファイル合計サイズが上限を超えています |
+| 添付ファイル | ERR-FILE-009 | 500 | ファイルの保存に失敗しました。しばらくしてから再度お試しください。 |
+| 添付ファイル | ERR-FILE-010 | 500 | ファイルの取得に失敗しました。しばらくしてから再度お試しください。 |
 | 通知 | ERR-NOTIFY-001 | 404 | 通知が存在しません |
 | 通知 | ERR-NOTIFY-002 | 403 | 通知参照権限がありません |
 | 履歴 | ERR-ACTIVITY-001 | 404 | 履歴が存在しません |
@@ -420,7 +440,7 @@ Authorization: Bearer <JWT>
 |---:|---|---|
 | 400 | ERR-INPUT-001 | 入力不正 |
 | 409 | ERR-USR-001 | メールアドレス重複 |
-| 500 | ERR-FILE-007 / ERR-SYS-999 / ERR-SYS-001 | S3保存失敗 / 想定外エラー / DBエラー |
+| 500 | ERR-SYS-999 / ERR-SYS-001 | 想定外エラー / DBエラー |
 
 ---
 
@@ -491,7 +511,7 @@ Authorization: Bearer <JWT>
 |---:|---|---|
 | 400 | ERR-INPUT-001 | 入力不正 |
 | 401 | ERR-AUTH-002 | 認証失敗 |
-| 500 | ERR-FILE-008 / ERR-SYS-999 / ERR-SYS-001 | S3取得失敗 / 想定外エラー / DBエラー |
+| 500 | ERR-SYS-999 / ERR-SYS-001 | 想定外エラー / DBエラー |
 
 ---
 
@@ -558,6 +578,7 @@ Authorization: Bearer <JWT>
 | createdBy.name | string | 作成者名 |
 | createdAt | string | 作成日時 |
 | updatedAt | string | 更新日時 |
+| version | number | 楽観ロック用バージョン |
 
 ### レスポンス例
 
@@ -578,7 +599,8 @@ Authorization: Bearer <JWT>
     "name": "山田太郎"
   },
   "createdAt": "2026-04-12T21:30:00",
-  "updatedAt": "2026-04-12T21:30:00"
+  "updatedAt": "2026-04-12T21:30:00",
+  "version": 0
 }
 ```
 
@@ -654,6 +676,7 @@ Authorization: Bearer <JWT>
 | assignedUser.id | number | 担当者ID |
 | assignedUser.name | string | 担当者名 |
 | updatedAt | string | 更新日時 |
+| version | number | 楽観ロック用バージョン |
 
 ### レスポンス例
 
@@ -669,7 +692,8 @@ Authorization: Bearer <JWT>
       "id": 2,
       "name": "佐藤花子"
     },
-    "updatedAt": "2026-04-12T21:30:00"
+    "updatedAt": "2026-04-12T21:30:00",
+    "version": 3
   }
 ]
 ```
@@ -762,6 +786,7 @@ Authorization: Bearer <JWT>
 | priority | string | ○ | 優先度 | `LOW` / `MEDIUM` / `HIGH` |
 | dueDate | string |  | 期限日 | `yyyy-MM-dd` |
 | assignedUserId | number |  | 担当ユーザーID | 存在するユーザーID |
+| version | number | ○ | 取得時点のタスクバージョン | 0以上の整数 |
 
 ### 正常レスポンス
 
@@ -774,6 +799,8 @@ Authorization: Bearer <JWT>
 - 専用のタスク編集画面は設けない。
 - 更新成功後、画面は表示モードへ戻る。
 - 画面側はレスポンス内容または再取得したタスク詳細で表示内容を更新する。
+- リクエストボディの `version` には、編集開始時または直前再取得時に取得したタスク最新値を指定する。
+- サーバー側の `version` と不一致の場合は `409 ERR-TASK-007` を返却し、タスク更新・履歴記録・通知生成は行わない。
 - 削除済みタスクは未存在として扱う。
 
 ### 主な異常レスポンス
@@ -785,6 +812,7 @@ Authorization: Bearer <JWT>
 | 400 | ERR-TASK-003 | dueDate不正 |
 | 400 | ERR-INPUT-001 | priority等その他入力不正 |
 | 401 | ERR-AUTH-001 / 003 / 004 | 未認証 / 不正トークン / 期限切れ |
+| 409 | ERR-TASK-007 | 更新競合 |
 | 403 | ERR-TASK-005 | 更新権限なし |
 | 404 | ERR-TASK-004 | タスク未存在 |
 | 404 | ERR-USR-002 | assignedUserIdのユーザーが存在しない |
@@ -863,6 +891,8 @@ Authorization: Bearer <JWT>
 
 - タスク担当者選択用のユーザー一覧を返す
 - 並び順は `name ASC, id ASC`
+- 現行実装の権限制御では Spring Security 上の権限は `ROLE_USER` のみを利用する
+- `ADMIN` は将来拡張時のロール値として予約している
 
 ### 正常レスポンス
 
@@ -889,7 +919,7 @@ Authorization: Bearer <JWT>
     "id": 2,
     "name": "佐藤花子",
     "email": "sato@example.com",
-    "role": "ADMIN"
+    "role": "MEMBER"
   }
 ]
 ```
@@ -941,6 +971,7 @@ Authorization: Bearer <JWT>
 
 - 対象タスクを参照できるユーザーのみ取得可能
 - 削除済みコメントは返却しない
+- 削除済みコメントを `削除済み` などのプレースホルダに置き換えて返却しない
 - ソート順は `createdAt ASC, id ASC`
 
 ### 正常レスポンス
@@ -956,6 +987,7 @@ Authorization: Bearer <JWT>
 | createdBy.name | string | 投稿者名 |
 | createdAt | string | 投稿日時 |
 | updatedAt | string | 更新日時 |
+| version | number | 楽観ロック用バージョン |
 
 ### レスポンス例
 
@@ -971,7 +1003,8 @@ Authorization: Bearer <JWT>
         "name": "山田太郎"
       },
       "createdAt": "2026-04-14T10:00:00",
-      "updatedAt": "2026-04-14T10:00:00"
+      "updatedAt": "2026-04-14T10:00:00",
+      "version": 0
     }
   ],
   "page": 0,
@@ -1078,11 +1111,17 @@ Authorization: Bearer <JWT>
 | 項目名 | 型 | 必須 | 説明 | バリデーション |
 |---|---|---|---|---|
 | content | string | ○ | コメント本文 | 未入力不可、1000文字以内 |
+| version | number | ○ | 取得時点のコメントバージョン | 0以上の整数 |
 
 ### 正常レスポンス
 
 - HTTPステータス: `200 OK`
 - レスポンス項目は「コメント一覧取得」のコメント項目と同一
+
+### 補足
+
+- リクエストボディの `version` には、コメント一覧取得APIなどで取得した対象コメントの最新値を指定する。
+- サーバー側の `version` と不一致の場合は `409 ERR-COMMENT-006` を返却し、コメント更新・履歴記録・通知生成は行わない。
 
 ### 主な異常レスポンス
 
@@ -1090,6 +1129,7 @@ Authorization: Bearer <JWT>
 |---:|---|---|
 | 400 | ERR-COMMENT-001 / ERR-COMMENT-003 | 未入力 / 文字数超過 |
 | 401 | ERR-AUTH-001 / 003 / 004 | 未認証 / 不正トークン / 期限切れ |
+| 409 | ERR-COMMENT-006 | 更新競合 |
 | 403 | ERR-COMMENT-004 | コメント更新権限なし |
 | 404 | ERR-COMMENT-002 | コメント未存在 |
 | 500 | ERR-SYS-999 / ERR-SYS-001 | 想定外エラー / DBエラー |
@@ -1123,6 +1163,12 @@ Authorization: Bearer <JWT>
 ### 正常レスポンス
 
 - HTTPステータス: `204 No Content`
+
+### 補足
+
+- 削除成功後、対象コメントはコメント一覧取得APIの返却対象から除外する。
+- コメント削除の事実は、履歴一覧取得APIで `COMMENT_DELETED` イベントとして確認する。
+- 削除済みコメント本文は API レスポンスで再表示しない。
 
 ### 主な異常レスポンス
 
@@ -1243,7 +1289,13 @@ Authorization: Bearer <JWT>
 
 | 項目名 | 型 | 必須 | 説明 | バリデーション |
 |---|---|---|---|---|
-| file | file | ○ | 添付ファイル | 未選択不可、サイズ上限内、許可形式のみ |
+| file | file | ○ | 添付ファイル | 未選択不可、1ファイル10MB以内、1タスク20件以内、1タスク合計100MB以内、許可形式のみ |
+
+### 補足
+
+- 拡張子と MIME タイプの両方を検証する。
+- 件数上限と合計サイズ上限は、既存の未削除添付を含めて判定する。
+- 本フェーズの制約値は 1ファイル10MB、1タスク20件、1タスク合計100MB とする。
 
 ### 正常レスポンス
 
@@ -1254,11 +1306,11 @@ Authorization: Bearer <JWT>
 
 | HTTP | errorCode | 説明 |
 |---:|---|---|
-| 400 | ERR-FILE-001 / ERR-FILE-005 / ERR-FILE-006 | 未選択 / サイズ超過 / 形式不正 |
+| 400 | ERR-FILE-001 / ERR-FILE-005 / ERR-FILE-006 / ERR-FILE-007 / ERR-FILE-008 | 未選択 / 1ファイルサイズ超過 / 形式不正 / 件数上限超過 / 合計サイズ上限超過 |
 | 401 | ERR-AUTH-001 / 003 / 004 | 未認証 / 不正トークン / 期限切れ |
 | 403 | ERR-FILE-003 | 添付アップロード権限なし |
 | 404 | ERR-TASK-004 | タスク未存在 |
-| 500 | ERR-SYS-999 / ERR-SYS-001 | 想定外エラー / DBエラー |
+| 500 | ERR-FILE-009 / ERR-SYS-999 / ERR-SYS-001 | S3保存失敗 / 想定外エラー / DBエラー |
 
 ---
 
@@ -1299,7 +1351,7 @@ Authorization: Bearer <JWT>
 | 401 | ERR-AUTH-001 / 003 / 004 | 未認証 / 不正トークン / 期限切れ |
 | 403 | ERR-AUTH-005 | ダウンロード権限なし |
 | 404 | ERR-FILE-002 | 添付ファイル未存在 |
-| 500 | ERR-SYS-999 / ERR-SYS-001 | 想定外エラー / ファイル取得失敗 |
+| 500 | ERR-FILE-010 / ERR-SYS-999 / ERR-SYS-001 | S3取得失敗 / 想定外エラー / DBエラー |
 
 ---
 
@@ -1378,6 +1430,8 @@ Authorization: Bearer <JWT>
 - `notifications` は既読状態を管理し、通知本文や関連タスクは `activity_logs` から組み立てる。
 - ソート順は `notifications.createdAt DESC, notifications.id DESC`。
 - 通知レコードクリック時の遷移先として `relatedTaskId` を返却する。
+- 画面側は通知レコードクリック時、未読なら `PATCH /api/notifications/{id}/read` を先に実行し、その後 `GET /api/tasks/{relatedTaskId}` で参照可否を確認する。
+- `GET /api/tasks/{relatedTaskId}` が `200 OK` の場合のみ画面遷移する。
 
 ### 正常レスポンス
 
@@ -1507,6 +1561,8 @@ Authorization: Bearer <JWT>
 
 - 自分宛通知のみ既読化できる。
 - 既読化済み通知に対して再実行された場合も正常終了とする。
+- 通知レコードクリック時、未読通知であれば本APIを先に実行してから関連タスクの参照可否確認へ進む。
+- 既読化成功後に関連タスク参照確認が `404` または `403` となった場合でも、通知の既読状態は維持する。
 
 ### 正常レスポンス
 
@@ -1545,6 +1601,7 @@ Authorization: Bearer <JWT>
 ### 補足
 
 - 対象は自分宛の未読通知のみ。
+- 未読通知が0件の状態で再実行された場合も `204 No Content` で正常終了とする。
 - 正常終了後、画面側は通知一覧および未読通知件数を再取得する。
 
 ### 正常レスポンス
@@ -1692,10 +1749,10 @@ Authorization: Bearer <JWT>
 
 ## 7.4 ロール値
 
-| 値 | 意味 |
-|---|---|
-| MEMBER | 一般ユーザー |
-| ADMIN | 管理者ユーザー |
+| 値 | 意味 | 適用 |
+|---|---|---|
+| MEMBER | 一般ユーザー | 現行 / 将来 |
+| ADMIN | 管理者ユーザー | 将来拡張 |
 
 ## 7.5 アクティビティイベント種別
 
