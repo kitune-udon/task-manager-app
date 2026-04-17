@@ -2,13 +2,11 @@ export type ResolvedRoute =
   | { page: 'list' }
   | { page: 'create' }
   | { page: 'detail'; taskId: string }
-  | { page: 'edit'; taskId: string }
+  | { page: 'notifications' }
 
 export function parseRoute(pathname: string): ResolvedRoute {
   if (pathname === '/tasks/new') return { page: 'create' }
-
-  const editMatch = pathname.match(/^\/tasks\/([^/]+)\/edit$/)
-  if (editMatch) return { page: 'edit', taskId: editMatch[1] }
+  if (pathname === '/notifications') return { page: 'notifications' }
 
   const detailMatch = pathname.match(/^\/tasks\/([^/]+)$/)
   if (detailMatch) return { page: 'detail', taskId: detailMatch[1] }

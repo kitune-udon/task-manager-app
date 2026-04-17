@@ -1,3 +1,19 @@
+spring:
+  datasource:
+    url: ${TEST_DB_URL:${DB_URL:jdbc:postgresql://localhost:5432/taskdb}}
+    username: ${TEST_DB_USERNAME:${DB_USERNAME:postgres}}
+    password: ${TEST_DB_PASSWORD:${DB_PASSWORD:postgres}}
+  jpa:
+    properties:
+      hibernate:
+        default_schema: ${TEST_DB_SCHEMA:taskapp_test}
+  flyway:
+    default-schema: ${TEST_DB_SCHEMA:taskapp_test}
+    schemas: ${TEST_DB_SCHEMA:taskapp_test}
+    create-schemas: true
+
 app:
   jwt:
     secret: QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo0MTIzNDU2Nzg5MDEyMzQ=
+  storage:
+    local-base-path: ${java.io.tmpdir}/task-manager-app-test-attachments

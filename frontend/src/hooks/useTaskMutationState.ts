@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import type { ResolvedRoute } from '../app_navigation'
 import { extractFieldErrorsFromApiError, hasFieldErrors, resolveUserMessage } from '../lib/authApi'
 import type { FieldErrors } from '../lib/apiError'
 import { createTask, deleteTask, updateTask, type TaskItem } from '../lib/taskApi'
@@ -12,7 +11,6 @@ import {
 } from './taskStateShared'
 
 type Params = {
-  routePage: ResolvedRoute['page']
   selectedTaskId: string | null
   selectedTask: TaskItem | null
   assigneeOptions: AssigneeOption[]
@@ -21,6 +19,8 @@ type Params = {
   setDetailErrorMessage: (value: string) => void
   resetMessages: () => void
   setGlobalSuccessMessage: (value: string) => void
+  stopEditing: () => void
+  refreshUnreadCount: () => Promise<void>
   go: (path: string, replace?: boolean) => void
 }
 
@@ -37,7 +37,6 @@ function toTaskRequestPayload(form: TaskFormState) {
 }
 
 export function useTaskMutationState({
-  routePage,
   selectedTaskId,
   selectedTask,
   assigneeOptions,
@@ -46,6 +45,8 @@ export function useTaskMutationState({
   setDetailErrorMessage,
   resetMessages,
   setGlobalSuccessMessage,
+  stopEditing,
+  refreshUnreadCount,
   go,
 }: Params) {
   const [createForm, setCreateForm] = useState<TaskFormState>(defaultTaskForm)
@@ -133,11 +134,14 @@ export function useTaskMutationState({
 
     setIsSubmittingTask(true)
     try {
-      const updatedTask = await updateTask(selectedTaskId, toTaskRequestPayload(editForm))
+      const updatedTask = await updateTask(selectedTaskId, {
+        ...toTaskRequestPayload(editForm),
+        version: Number(selectedTask?.version ?? 0),
+      })
       setSelectedTask(updatedTask)
       setEditFieldErrors({})
-      await loadTasks()
-      go(`/tasks/${selectedTaskId}`)
+      await Promise.all([loadTasks(), refreshUnreadCount()])
+      stopEditing()
       setGlobalSuccessMessage('タスクを更新しました。')
     } catch (error) {
       const apiFieldErrors = extractFieldErrorsFromApiError(error)
@@ -171,11 +175,11 @@ export function useTaskMutationState({
   }
 
   useEffect(() => {
-    if (routePage === 'edit' && selectedTask) {
+    if (selectedTask) {
       setEditFieldErrors({})
       setEditForm(toTaskFormState(selectedTask))
     }
-  }, [routePage, selectedTask])
+  }, [selectedTask])
 
   const createTaskForm = useMemo(
     () => toTaskFormBindings(createForm, createFieldErrors, setCreateForm, setCreateFieldErrors),
@@ -194,6 +198,11 @@ export function useTaskMutationState({
 
   const clearEditErrors = () => {
     setEditFieldErrors({})
+  }
+
+  const resetEditForm = () => {
+    setEditFieldErrors({})
+    setEditForm(selectedTask ? toTaskFormState(selectedTask) : defaultTaskForm)
   }
 
   const clearMutationState = () => {
@@ -217,6 +226,7 @@ export function useTaskMutationState({
     handleDeleteTask,
     resetCreateState,
     clearEditErrors,
+    resetEditForm,
     clearMutationState,
   }
 }

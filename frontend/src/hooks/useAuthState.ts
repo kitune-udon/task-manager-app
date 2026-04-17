@@ -11,13 +11,16 @@ import type { FieldErrors } from '../lib/apiError'
 import {
   clearAuthToken,
   clearPostLoginRedirectPath,
+  clearUserId,
   clearUserDisplayName,
   consumePostLoginRedirectPath,
   getAuthToken,
+  getUserId,
   getUserDisplayName,
   isProtectedPath,
   saveAuthToken,
   savePostLoginRedirectPath,
+  saveUserId,
   saveUserDisplayName,
 } from '../lib/authStorage'
 
@@ -35,6 +38,7 @@ export function useAuthState({ go, onUnauthorized }: Params) {
 
   const [mode, setMode] = useState<AuthMode>(() => resolveAuthMode(window.location.pathname))
   const [token, setToken] = useState<string>(() => getAuthToken())
+  const [currentUserId, setCurrentUserId] = useState<number | null>(() => getUserId())
   const [currentUserLabel, setCurrentUserLabel] = useState<string>(() => getUserDisplayName())
 
   const [loginEmail, setLoginEmail] = useState('')
@@ -170,6 +174,13 @@ export function useAuthState({ go, onUnauthorized }: Params) {
 
       saveAuthToken(resolvedToken)
       saveUserDisplayName(resolvedUserName)
+      if (typeof result.user?.id === 'number') {
+        saveUserId(result.user.id)
+        setCurrentUserId(result.user.id)
+      } else {
+        clearUserId()
+        setCurrentUserId(null)
+      }
       setToken(resolvedToken)
       setCurrentUserLabel(resolvedUserName)
       setLoginFieldErrors({})
@@ -232,9 +243,11 @@ export function useAuthState({ go, onUnauthorized }: Params) {
 
   const handleLogout = () => {
     clearAuthToken()
+    clearUserId()
     clearUserDisplayName()
     clearPostLoginRedirectPath()
     setToken('')
+    setCurrentUserId(null)
     setCurrentUserLabel('')
     setLoginPassword('')
     setLoginFieldErrors({})
@@ -250,7 +263,9 @@ export function useAuthState({ go, onUnauthorized }: Params) {
         savePostLoginRedirectPath(currentPath)
       }
       clearUserDisplayName()
+      clearUserId()
       setToken('')
+      setCurrentUserId(null)
       setCurrentUserLabel('')
       setLoginPassword('')
       setLoginFieldErrors({})
@@ -303,6 +318,7 @@ export function useAuthState({ go, onUnauthorized }: Params) {
     mode,
     isLoggedIn,
     currentUserLabel,
+    currentUserId,
     errorMessage,
     successMessage,
     isSubmitting,

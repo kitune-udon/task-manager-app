@@ -16,11 +16,16 @@ export function useRouteState() {
   const go = (path: string, replace = false) => navigateTo(path, replace)
 
   const selectedTaskId = useMemo(
-    () => (route.page === 'detail' || route.page === 'edit' ? route.taskId : null),
+    () => (route.page === 'detail' ? route.taskId : null),
     [route],
   )
 
-  const activePath = route.page === 'create' ? '/tasks/new' : '/tasks'
+  const activePath =
+    route.page === 'create'
+      ? '/tasks/new'
+      : route.page === 'notifications'
+        ? '/notifications'
+        : '/tasks'
 
   return {
     route,

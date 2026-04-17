@@ -1,6 +1,8 @@
 package com.example.task.exception;
 
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import com.example.task.dto.CommentCreateRequest;
+import com.example.task.dto.CommentUpdateRequest;
 import com.example.task.dto.TaskCreateRequest;
 import com.example.task.dto.TaskUpdateRequest;
 import com.example.task.dto.common.ErrorDetail;
@@ -16,6 +18,8 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -119,6 +123,15 @@ public class GlobalExceptionHandler {
         return build(code.getHttpStatus(), code.getCode(), ex.getMessage(), null, request, ex);
     }
 
+    @ExceptionHandler(StorageException.class)
+    public ResponseEntity<ErrorResponse> handleStorage(
+            StorageException ex,
+            HttpServletRequest request
+    ) {
+        ErrorCode code = ex.getErrorCode();
+        return build(code.getHttpStatus(), code.getCode(), code.getDefaultMessage(), null, request, ex);
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(
             AccessDeniedException ex,
@@ -162,6 +175,21 @@ public class GlobalExceptionHandler {
                 resolution.errorCode().getCode(),
                 resolution.errorCode().getDefaultMessage(),
                 resolution.details(),
+                request,
+                ex
+        );
+    }
+
+    @ExceptionHandler({MultipartException.class, MaxUploadSizeExceededException.class})
+    public ResponseEntity<ErrorResponse> handleMultipart(
+            Exception ex,
+            HttpServletRequest request
+    ) {
+        return build(
+                ErrorCode.FILE_005.getHttpStatus(),
+                ErrorCode.FILE_005.getCode(),
+                ErrorCode.FILE_005.getDefaultMessage(),
+                null,
                 request,
                 ex
         );
@@ -290,6 +318,12 @@ public class GlobalExceptionHandler {
             }
         }
 
+        if (target instanceof CommentCreateRequest || target instanceof CommentUpdateRequest) {
+            if (hasField(details, "content")) {
+                return containsMessage(details, "1000") ? ErrorCode.COMMENT_003 : ErrorCode.COMMENT_001;
+            }
+        }
+
         return ErrorCode.VAL_INPUT_001;
     }
 
@@ -344,6 +378,13 @@ public class GlobalExceptionHandler {
 
     private boolean hasField(List<ErrorDetail> details, String fieldName) {
         return details.stream().anyMatch(detail -> fieldName.equals(detail.getField()));
+    }
+
+    private boolean containsMessage(List<ErrorDetail> details, String token) {
+        return details.stream()
+                .map(ErrorDetail::getMessage)
+                .filter(Objects::nonNull)
+                .anyMatch(message -> message.contains(token));
     }
 
     private boolean isRegisterValidationFailure(HttpServletRequest request, HttpStatus status) {

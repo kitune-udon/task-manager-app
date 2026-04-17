@@ -5,6 +5,7 @@ import { formatDate } from '../utils/format'
 type Props = {
   activePath: string
   currentUserLabel: string
+  unreadCount: number
   onNavigate: (path: string) => void
   onLogout: () => void
   onShowCreate: () => void
@@ -32,6 +33,7 @@ export function TaskListPage(props: Props) {
       onNavigate={props.onNavigate}
       onLogout={props.onLogout}
       currentUserLabel={props.currentUserLabel}
+      unreadCount={props.unreadCount}
       actions={
         <>
           <button className="primary-button" onClick={props.onShowCreate} type="button">タスク作成</button>

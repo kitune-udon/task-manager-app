@@ -3,7 +3,6 @@ package com.example.task.security;
 import com.example.task.config.JwtProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -79,7 +78,7 @@ public class JwtUtil {
      * 設定値の Base64 文字列を JWT 署名に使える秘密鍵へ変換する。
      */
     private SecretKey getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(jwtProperties.getSecret());
+        byte[] keyBytes = jwtProperties.getDecodedSecretBytes();
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }

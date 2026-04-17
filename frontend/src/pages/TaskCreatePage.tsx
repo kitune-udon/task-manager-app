@@ -7,6 +7,7 @@ import { TaskForm } from '../components/TaskForm'
 type Props = {
   activePath: string
   currentUserLabel: string
+  unreadCount: number
   onNavigate: (path: string) => void
   onLogout: () => void
   onShowList: () => void
@@ -31,6 +32,7 @@ export function TaskCreatePage(props: Props) {
       onNavigate={props.onNavigate}
       onLogout={props.onLogout}
       currentUserLabel={props.currentUserLabel}
+      unreadCount={props.unreadCount}
       actions={
         <button className="secondary-button" onClick={props.onShowList} type="button">
           一覧へ戻る

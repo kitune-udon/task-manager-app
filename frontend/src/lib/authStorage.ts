@@ -1,5 +1,6 @@
 const TOKEN_KEY = 'authToken'
 const USER_DISPLAY_NAME_KEY = 'userDisplayName'
+const USER_ID_KEY = 'userId'
 const REDIRECT_PATH_KEY = 'postLoginRedirectPath'
 
 export function getAuthToken(): string {
@@ -26,8 +27,26 @@ export function clearUserDisplayName() {
   localStorage.removeItem(USER_DISPLAY_NAME_KEY)
 }
 
+export function getUserId(): number | null {
+  const value = localStorage.getItem(USER_ID_KEY)
+  if (!value) {
+    return null
+  }
+
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+export function saveUserId(value: number) {
+  localStorage.setItem(USER_ID_KEY, String(value))
+}
+
+export function clearUserId() {
+  localStorage.removeItem(USER_ID_KEY)
+}
+
 export function isProtectedPath(pathname: string): boolean {
-  return /^\/tasks(?:\/.*)?$/.test(pathname)
+  return /^\/(?:tasks(?:\/.*)?|notifications)$/.test(pathname)
 }
 
 export function savePostLoginRedirectPath(pathname: string) {
@@ -52,5 +71,6 @@ export function clearPostLoginRedirectPath() {
 export {
   TOKEN_KEY,
   USER_DISPLAY_NAME_KEY,
+  USER_ID_KEY,
   REDIRECT_PATH_KEY,
 }

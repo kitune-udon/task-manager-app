@@ -10,7 +10,7 @@ export function useTaskDetailState({ selectedTaskId }: Params) {
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null)
   const [detailErrorMessage, setDetailErrorMessage] = useState('')
   const [isLoadingDetail, setIsLoadingDetail] = useState(false)
-  const [commentDraft, setCommentDraft] = useState('')
+  const [isEditing, setIsEditing] = useState(false)
 
   const loadTaskDetail = async (taskId: string) => {
     setIsLoadingDetail(true)
@@ -20,7 +20,7 @@ export function useTaskDetailState({ selectedTaskId }: Params) {
       const task = await fetchTaskById(taskId)
       setSelectedTask(task)
       if (!task) {
-        setDetailErrorMessage('対象タスクが見つかりません。')
+        setDetailErrorMessage('タスクが見つかりません。')
       }
       return task
     } catch (error) {
@@ -34,9 +34,11 @@ export function useTaskDetailState({ selectedTaskId }: Params) {
 
   useEffect(() => {
     if (selectedTaskId) {
+      setIsEditing(false)
       void loadTaskDetail(selectedTaskId)
     } else {
       setSelectedTask(null)
+      setIsEditing(false)
     }
   }, [selectedTaskId])
 
@@ -48,7 +50,7 @@ export function useTaskDetailState({ selectedTaskId }: Params) {
     setSelectedTask(null)
     setDetailErrorMessage('')
     setIsLoadingDetail(false)
-    setCommentDraft('')
+    setIsEditing(false)
   }
 
   return {
@@ -57,8 +59,9 @@ export function useTaskDetailState({ selectedTaskId }: Params) {
     detailErrorMessage,
     setDetailErrorMessage,
     isLoadingDetail,
-    commentDraft,
-    setCommentDraft,
+    isEditing,
+    startEditing: () => setIsEditing(true),
+    cancelEditing: () => setIsEditing(false),
     loadTaskDetail,
     clearDetailErrorMessage,
     clearDetailState,

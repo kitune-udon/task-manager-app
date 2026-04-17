@@ -4,6 +4,10 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.example.task.entity.User;
+import com.example.task.repository.ActivityLogRepository;
+import com.example.task.repository.NotificationRepository;
+import com.example.task.repository.TaskAttachmentRepository;
+import com.example.task.repository.TaskCommentRepository;
 import com.example.task.repository.TaskRepository;
 import com.example.task.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -58,6 +62,18 @@ class LoggingEventIntegrationTests {
     private TaskRepository taskRepository;
 
     @Autowired
+    private TaskCommentRepository taskCommentRepository;
+
+    @Autowired
+    private TaskAttachmentRepository taskAttachmentRepository;
+
+    @Autowired
+    private ActivityLogRepository activityLogRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     private Logger applicationLogger;
@@ -69,6 +85,10 @@ class LoggingEventIntegrationTests {
 
     @BeforeEach
     void setUp() {
+        notificationRepository.deleteAllInBatch();
+        activityLogRepository.deleteAllInBatch();
+        taskAttachmentRepository.deleteAllInBatch();
+        taskCommentRepository.deleteAllInBatch();
         taskRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
         attachAppenders();

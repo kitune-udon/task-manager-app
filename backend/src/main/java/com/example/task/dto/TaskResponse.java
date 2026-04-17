@@ -24,4 +24,5 @@ public class TaskResponse {
     private TaskUserResponse createdBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Long version;
 }

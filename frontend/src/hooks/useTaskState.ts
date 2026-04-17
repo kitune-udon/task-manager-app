@@ -1,4 +1,3 @@
-import type { ResolvedRoute } from '../app_navigation'
 import { useAssignableUsers } from './useAssignableUsers'
 import { useTaskDetailState } from './useTaskDetailState'
 import { useTaskListState } from './useTaskListState'
@@ -6,11 +5,11 @@ import { useTaskMutationState } from './useTaskMutationState'
 
 type Params = {
   isLoggedIn: boolean
-  route: ResolvedRoute
   selectedTaskId: string | null
   go: (path: string, replace?: boolean) => void
   resetMessages: () => void
   setGlobalSuccessMessage: (value: string) => void
+  refreshUnreadCount: () => Promise<void>
 }
 
 export type UseTaskStateResult = {
@@ -23,7 +22,8 @@ export type UseTaskStateResult = {
     handleShowList: () => Promise<void>
     handleShowCreate: () => void
     handleShowDetail: (taskId: number | string) => void
-    handleShowEdit: () => void
+    handleStartEdit: () => void
+    handleCancelEdit: () => void
     handleCreateTask: ReturnType<typeof useTaskMutationState>['handleCreateTask']
     handleEditTask: ReturnType<typeof useTaskMutationState>['handleEditTask']
     handleDeleteTask: () => Promise<void>
@@ -33,11 +33,11 @@ export type UseTaskStateResult = {
 
 export function useTaskState({
   isLoggedIn,
-  route,
   selectedTaskId,
   go,
   resetMessages,
   setGlobalSuccessMessage,
+  refreshUnreadCount,
 }: Params): UseTaskStateResult {
   const list = useTaskListState({ isLoggedIn })
   const detail = useTaskDetailState({ selectedTaskId })
@@ -46,7 +46,6 @@ export function useTaskState({
     selectedTask: detail.selectedTask,
   })
   const mutation = useTaskMutationState({
-    routePage: route.page,
     selectedTaskId,
     selectedTask: detail.selectedTask,
     assigneeOptions: assignableUsers.assigneeOptions,
@@ -55,6 +54,8 @@ export function useTaskState({
     setDetailErrorMessage: detail.setDetailErrorMessage,
     resetMessages,
     setGlobalSuccessMessage,
+    stopEditing: detail.cancelEditing,
+    refreshUnreadCount,
     go,
   })
 
@@ -80,12 +81,16 @@ export function useTaskState({
     go(`/tasks/${taskId}`)
   }
 
-  const handleShowEdit = () => {
-    if (!selectedTaskId) return
+  const handleStartEdit = () => {
     resetMessages()
     detail.clearDetailErrorMessage()
     mutation.clearEditErrors()
-    go(`/tasks/${selectedTaskId}/edit`)
+    detail.startEditing()
+  }
+
+  const handleCancelEdit = () => {
+    mutation.resetEditForm()
+    detail.cancelEditing()
   }
 
   const clearTaskStateOnLogout = () => {
@@ -105,7 +110,8 @@ export function useTaskState({
       handleShowList,
       handleShowCreate,
       handleShowDetail,
-      handleShowEdit,
+      handleStartEdit,
+      handleCancelEdit,
       handleCreateTask: mutation.handleCreateTask,
       handleEditTask: mutation.handleEditTask,
       handleDeleteTask: mutation.handleDeleteTask,

@@ -7,7 +7,10 @@ type Props = {
   onNavigate: (path: string) => void
   onLogout: () => void
   currentUserLabel: string
+  unreadCount?: number
   actions?: ReactNode
+  contentAreaClassName?: string
+  contentBodyClassName?: string
   children: ReactNode
 }
 
@@ -18,12 +21,17 @@ export function TaskShell({
   onNavigate,
   onLogout,
   currentUserLabel,
+  unreadCount = 0,
   actions,
+  contentAreaClassName,
+  contentBodyClassName,
   children,
 }: Props) {
+  const unreadBadgeLabel = unreadCount > 99 ? '99+' : unreadCount > 0 ? unreadCount : null
   const navItems = [
     { label: 'タスク一覧', path: '/tasks' },
     { label: 'タスク作成', path: '/tasks/new' },
+    { label: '通知', path: '/notifications', badge: unreadBadgeLabel },
   ]
 
   return (
@@ -50,13 +58,14 @@ export function TaskShell({
               onClick={() => onNavigate(item.path)}
               type="button"
             >
-              {item.label}
+              <span>{item.label}</span>
+              {item.badge ? <span className="nav-badge">{item.badge}</span> : null}
             </button>
           ))}
         </nav>
       </aside>
 
-      <section className="content-area">
+      <section className={contentAreaClassName ? `content-area ${contentAreaClassName}` : 'content-area'}>
         <header className="content-header">
           <div>
             <h1>{title}</h1>
@@ -65,7 +74,7 @@ export function TaskShell({
           {actions ? <div className="header-actions">{actions}</div> : null}
         </header>
 
-        {children}
+        <div className={contentBodyClassName ? `content-body ${contentBodyClassName}` : 'content-body'}>{children}</div>
       </section>
     </main>
   )
