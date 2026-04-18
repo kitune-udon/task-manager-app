@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { extractFieldErrorsFromApiError, hasFieldErrors, resolveUserMessage } from '../lib/authApi'
-import type { FieldErrors } from '../lib/apiError'
+import { extractApiErrorCode, type FieldErrors } from '../lib/apiError'
 import { createTask, deleteTask, updateTask, type TaskItem } from '../lib/taskApi'
 import {
   defaultTaskForm,
@@ -15,6 +15,7 @@ type Params = {
   selectedTask: TaskItem | null
   assigneeOptions: AssigneeOption[]
   loadTasks: () => Promise<void>
+  reloadSelectedTask: (taskId: string) => Promise<TaskItem | null>
   setSelectedTask: (value: TaskItem | null) => void
   setDetailErrorMessage: (value: string) => void
   resetMessages: () => void
@@ -41,6 +42,7 @@ export function useTaskMutationState({
   selectedTask,
   assigneeOptions,
   loadTasks,
+  reloadSelectedTask,
   setSelectedTask,
   setDetailErrorMessage,
   resetMessages,
@@ -144,10 +146,23 @@ export function useTaskMutationState({
       stopEditing()
       setGlobalSuccessMessage('タスクを更新しました。')
     } catch (error) {
+      const errorCode = extractApiErrorCode(error)
       const apiFieldErrors = extractFieldErrorsFromApiError(error)
       if (hasFieldErrors(apiFieldErrors)) {
         setEditFieldErrors(apiFieldErrors)
       }
+
+      if (errorCode === 'ERR-TASK-007') {
+        const latestTask = await reloadSelectedTask(selectedTaskId)
+        setEditFieldErrors({})
+
+        if (latestTask) {
+          setEditForm(toTaskFormState(latestTask))
+          setDetailErrorMessage('他のユーザーによりタスクが更新されました。最新状態を再読み込みしました。内容を確認して再編集してください。')
+          return
+        }
+      }
+
       setDetailErrorMessage(resolveUserMessage(error))
     } finally {
       setIsSubmittingTask(false)

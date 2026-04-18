@@ -24,4 +24,7 @@ public class StorageProperties {
     private String s3Bucket;
 
     private String s3Region = "ap-northeast-1";
+
+    @NotBlank
+    private String s3Prefix = "attachments";
 }

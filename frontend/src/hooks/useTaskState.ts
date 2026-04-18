@@ -50,6 +50,7 @@ export function useTaskState({
     selectedTask: detail.selectedTask,
     assigneeOptions: assignableUsers.assigneeOptions,
     loadTasks: list.loadTasks,
+    reloadSelectedTask: detail.loadTaskDetail,
     setSelectedTask: detail.setSelectedTask,
     setDetailErrorMessage: detail.setDetailErrorMessage,
     resetMessages,

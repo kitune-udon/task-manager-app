@@ -472,6 +472,10 @@ class MvpApiIntegrationTests {
                 .andReturn();
 
         long attachmentId = objectMapper.readTree(uploadResult.getResponse().getContentAsString()).path("id").asLong();
+        assertTrue(
+                taskAttachmentRepository.findById(attachmentId).orElseThrow().getStorageKey().startsWith("attachments/tasks/" + taskId + "/"),
+                "storageKey should start with attachments/tasks/{taskId}/"
+        );
 
         mockMvc.perform(get("/api/tasks/{taskId}/comments", taskId)
                         .header("Authorization", bearer(creatorToken)))

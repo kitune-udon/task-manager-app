@@ -1,22 +1,14 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import type { TaskPriority, TaskStatus, TaskItem, TaskComment, TaskAttachment, ActivityItem } from '../lib/taskApi'
-import {
-  createComment,
-  deleteAttachment,
-  deleteComment,
-  downloadAttachment,
-  fetchActivities,
-  fetchAttachments,
-  fetchComments,
-  updateComment,
-  uploadAttachment,
-} from '../lib/taskApi'
+import { useEffect, useMemo, useRef, type ChangeEvent, type FormEvent } from 'react'
+import type { TaskAttachment } from '../lib/attachmentApi'
+import type { TaskComment } from '../lib/commentApi'
+import type { TaskPriority, TaskStatus, TaskItem } from '../lib/taskApi'
 import type { AssigneeOption, TaskFormBindings } from '../hooks/taskStateShared'
-import { resolveUserMessage } from '../lib/authApi'
+import type { DetailTab } from '../hooks/useTaskDetailState'
+import { useTaskActivitiesState } from '../hooks/useTaskActivitiesState'
+import { useTaskAttachmentsState } from '../hooks/useTaskAttachmentsState'
+import { useTaskCommentsState } from '../hooks/useTaskCommentsState'
 import { TaskShell } from '../components/TaskShell'
 import { formatDate, formatDateTime } from '../utils/format'
-
-type DetailTab = 'comments' | 'history'
 
 type Props = {
   activePath: string
@@ -33,6 +25,10 @@ type Props = {
   onDelete: () => void
   isDeleting: boolean
   isEditing: boolean
+  activeActivityTab: DetailTab
+  onActivityTabChange: (value: DetailTab) => void
+  commentDraft: string
+  onCommentDraftChange: (value: string) => void
   detailErrorMessage: string
   successMessage: string
   isLoadingDetail: boolean
@@ -109,6 +105,10 @@ export function TaskDetailPage({
   onDelete,
   isDeleting,
   isEditing,
+  activeActivityTab,
+  onActivityTabChange,
+  commentDraft,
+  onCommentDraftChange,
   detailErrorMessage,
   successMessage,
   isLoadingDetail,
@@ -122,155 +122,37 @@ export function TaskDetailPage({
   isLoadingAssigneeOptions,
   assigneeOptionsError,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<DetailTab>('comments')
-  const [comments, setComments] = useState<TaskComment[]>([])
-  const [attachments, setAttachments] = useState<TaskAttachment[]>([])
-  const [activities, setActivities] = useState<ActivityItem[]>([])
-  const [isLoadingComments, setIsLoadingComments] = useState(false)
-  const [isLoadingAttachments, setIsLoadingAttachments] = useState(false)
-  const [isLoadingActivities, setIsLoadingActivities] = useState(false)
-  const [commentErrorMessage, setCommentErrorMessage] = useState('')
-  const [attachmentErrorMessage, setAttachmentErrorMessage] = useState('')
-  const [activityErrorMessage, setActivityErrorMessage] = useState('')
-  const [commentDraft, setCommentDraft] = useState('')
-  const [editingCommentId, setEditingCommentId] = useState<number | null>(null)
-  const [editingCommentContent, setEditingCommentContent] = useState('')
-  const [isSubmittingComment, setIsSubmittingComment] = useState(false)
-  const [activeCommentId, setActiveCommentId] = useState<number | null>(null)
-  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false)
-  const [activeAttachmentId, setActiveAttachmentId] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-
   const selectedTaskId = selectedTask?.id ?? null
-
-  const loadComments = async (taskId: number | string) => {
-    setIsLoadingComments(true)
-    setCommentErrorMessage('')
-
-    try {
-      const nextComments = await fetchComments(taskId)
-      setComments(nextComments)
-    } catch (error) {
-      setComments([])
-      setCommentErrorMessage(resolveUserMessage(error))
-    } finally {
-      setIsLoadingComments(false)
-    }
-  }
-
-  const loadAttachments = async (taskId: number | string) => {
-    setIsLoadingAttachments(true)
-    setAttachmentErrorMessage('')
-
-    try {
-      const nextAttachments = await fetchAttachments(taskId)
-      setAttachments(nextAttachments)
-    } catch (error) {
-      setAttachments([])
-      setAttachmentErrorMessage(resolveUserMessage(error))
-    } finally {
-      setIsLoadingAttachments(false)
-    }
-  }
-
-  const loadActivities = async (taskId: number | string) => {
-    setIsLoadingActivities(true)
-    setActivityErrorMessage('')
-
-    try {
-      const nextActivities = await fetchActivities(taskId)
-      setActivities(nextActivities)
-    } catch (error) {
-      setActivities([])
-      setActivityErrorMessage(resolveUserMessage(error))
-    } finally {
-      setIsLoadingActivities(false)
-    }
-  }
-
-  const reloadDetailResources = async () => {
-    if (!selectedTaskId) {
-      setComments([])
-      setAttachments([])
-      setActivities([])
-      return
-    }
-
-    await Promise.all([loadComments(selectedTaskId), loadAttachments(selectedTaskId), loadActivities(selectedTaskId)])
-  }
+  const activitiesState = useTaskActivitiesState({ selectedTaskId })
+  const commentsState = useTaskCommentsState({
+    selectedTaskId,
+    commentDraft,
+    setCommentDraft: onCommentDraftChange,
+    onReloadDetail,
+    onReloadActivities: activitiesState.loadActivities,
+    onRefreshUnreadCount,
+  })
+  const attachmentsState = useTaskAttachmentsState({
+    selectedTaskId,
+    onReloadDetail,
+    onReloadActivities: activitiesState.loadActivities,
+    onRefreshUnreadCount,
+  })
 
   useEffect(() => {
-    setActiveTab('comments')
-    setCommentDraft('')
-    setEditingCommentId(null)
-    setEditingCommentContent('')
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
-
-    if (!selectedTaskId) {
-      setComments([])
-      setAttachments([])
-      setActivities([])
-      setCommentErrorMessage('')
-      setAttachmentErrorMessage('')
-      setActivityErrorMessage('')
-      return
-    }
-
-    void reloadDetailResources()
   }, [selectedTaskId])
 
   const handleCreateComment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-
-    if (!selectedTaskId) {
-      return
-    }
-
-    const content = commentDraft.trim()
-    if (!content) {
-      setCommentErrorMessage('コメント内容を入力してください。')
-      return
-    }
-
-    setIsSubmittingComment(true)
-    setCommentErrorMessage('')
-
-    try {
-      await createComment(selectedTaskId, { content })
-      setCommentDraft('')
-      await Promise.all([loadComments(selectedTaskId), loadActivities(selectedTaskId), onReloadDetail(), onRefreshUnreadCount()])
-    } catch (error) {
-      setCommentErrorMessage(resolveUserMessage(error))
-    } finally {
-      setIsSubmittingComment(false)
-    }
+    await commentsState.submitComment()
   }
 
   const handleSaveEditedComment = async (comment: TaskComment) => {
-    const content = editingCommentContent.trim()
-    if (!content) {
-      setCommentErrorMessage('コメント内容を入力してください。')
-      return
-    }
-
-    setActiveCommentId(comment.id)
-    setCommentErrorMessage('')
-
-    try {
-      await updateComment(comment.id, {
-        content,
-        version: Number(comment.version ?? 0),
-      })
-      setEditingCommentId(null)
-      setEditingCommentContent('')
-      await Promise.all([loadComments(comment.taskId), loadActivities(comment.taskId), onReloadDetail()])
-    } catch (error) {
-      setCommentErrorMessage(resolveUserMessage(error))
-    } finally {
-      setActiveCommentId(null)
-    }
+    await commentsState.saveEditedComment(comment)
   }
 
   const handleDeleteComment = async (comment: TaskComment) => {
@@ -278,42 +160,13 @@ export function TaskDetailPage({
       return
     }
 
-    setActiveCommentId(comment.id)
-    setCommentErrorMessage('')
-
-    try {
-      await deleteComment(comment.id)
-      if (editingCommentId === comment.id) {
-        setEditingCommentId(null)
-        setEditingCommentContent('')
-      }
-      await Promise.all([loadComments(comment.taskId), loadActivities(comment.taskId), onReloadDetail()])
-    } catch (error) {
-      setCommentErrorMessage(resolveUserMessage(error))
-    } finally {
-      setActiveCommentId(null)
-    }
+    await commentsState.removeComment(comment)
   }
 
   const handleAttachmentSelectionChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
-
-    if (!selectedTaskId || !file) {
-      return
-    }
-
-    setIsUploadingAttachment(true)
-    setAttachmentErrorMessage('')
-
-    try {
-      await uploadAttachment(selectedTaskId, file)
-      await Promise.all([loadAttachments(selectedTaskId), loadActivities(selectedTaskId), onReloadDetail(), onRefreshUnreadCount()])
-    } catch (error) {
-      setAttachmentErrorMessage(resolveUserMessage(error))
-    } finally {
-      event.target.value = ''
-      setIsUploadingAttachment(false)
-    }
+    await attachmentsState.uploadSelectedFile(file)
+    event.target.value = ''
   }
 
   const handleAttachmentButtonClick = () => {
@@ -325,30 +178,11 @@ export function TaskDetailPage({
       return
     }
 
-    setActiveAttachmentId(attachment.id)
-    setAttachmentErrorMessage('')
-
-    try {
-      await deleteAttachment(attachment.id)
-      await Promise.all([loadAttachments(attachment.taskId), loadActivities(attachment.taskId), onReloadDetail()])
-    } catch (error) {
-      setAttachmentErrorMessage(resolveUserMessage(error))
-    } finally {
-      setActiveAttachmentId(null)
-    }
+    await attachmentsState.removeAttachment(attachment)
   }
 
   const handleDownloadAttachment = async (attachment: TaskAttachment) => {
-    setActiveAttachmentId(attachment.id)
-    setAttachmentErrorMessage('')
-
-    try {
-      await downloadAttachment(attachment.id, attachment.originalFileName)
-    } catch (error) {
-      setAttachmentErrorMessage(resolveUserMessage(error))
-    } finally {
-      setActiveAttachmentId(null)
-    }
+    await attachmentsState.downloadAttachmentFile(attachment)
   }
 
   const detailActions = useMemo(
@@ -362,9 +196,11 @@ export function TaskDetailPage({
             <button className="secondary-button" onClick={onStartEdit} type="button">
               編集
             </button>
-            <button className="primary-button danger-button" disabled={isDeleting} onClick={onDelete} type="button">
-              {isDeleting ? '削除中...' : '削除'}
-            </button>
+            {canManageOwnResource(currentUserId, selectedTask.createdBy?.id) ? (
+              <button className="primary-button danger-button" disabled={isDeleting} onClick={onDelete} type="button">
+                {isDeleting ? '削除中...' : '削除'}
+              </button>
+            ) : null}
           </>
         ) : (
           <>
@@ -378,7 +214,7 @@ export function TaskDetailPage({
         )}
       </>
     ),
-    [isDeleting, isEditing, isSubmitting, onCancelEdit, onDelete, onShowList, onStartEdit, selectedTask],
+    [currentUserId, isDeleting, isEditing, isSubmitting, onCancelEdit, onDelete, onShowList, onStartEdit, selectedTask],
   )
 
   return (
@@ -467,25 +303,27 @@ export function TaskDetailPage({
                     />
                     <button
                       className="secondary-button"
-                      disabled={isUploadingAttachment}
+                      disabled={attachmentsState.isUploadingAttachment}
                       onClick={handleAttachmentButtonClick}
                       type="button"
                     >
-                      {isUploadingAttachment ? 'アップロード中...' : '添付'}
+                      {attachmentsState.isUploadingAttachment ? 'アップロード中...' : '添付'}
                     </button>
                   </div>
                 </div>
-                {attachmentErrorMessage ? <div className="status-box error-box">{attachmentErrorMessage}</div> : null}
+                {attachmentsState.attachmentErrorMessage ? (
+                  <div className="status-box error-box">{attachmentsState.attachmentErrorMessage}</div>
+                ) : null}
 
-                {isLoadingAttachments ? (
+                {attachmentsState.isLoadingAttachments ? (
                   <p className="empty-message">添付一覧を読み込み中です...</p>
-                ) : attachments.length === 0 ? (
+                ) : attachmentsState.attachments.length === 0 ? (
                   <p className="empty-message">添付ファイルはまだありません。</p>
                 ) : (
                   <div className="attachment-list">
-                    {attachments.map((attachment) => {
+                    {attachmentsState.attachments.map((attachment) => {
                       const canDelete = canManageOwnResource(currentUserId, attachment.uploadedBy?.id)
-                      const isActiveAttachment = activeAttachmentId === attachment.id
+                      const isActiveAttachment = attachmentsState.activeAttachmentId === attachment.id
 
                       return (
                         <article className="file-item attachment-row" key={attachment.id}>
@@ -555,7 +393,11 @@ export function TaskDetailPage({
                   <h3 className="task-detail-section-title">アクティビティ</h3>
                   <button
                     className="text-link-button activity-refresh-button"
-                    onClick={() => void (activeTab === 'comments' ? loadComments(selectedTask.id) : loadActivities(selectedTask.id))}
+                    onClick={() =>
+                      void (activeActivityTab === 'comments'
+                        ? commentsState.loadComments(selectedTask.id)
+                        : activitiesState.loadActivities(selectedTask.id))
+                    }
                     type="button"
                   >
                     再読込
@@ -565,15 +407,15 @@ export function TaskDetailPage({
                   <span className="activity-display-label">表示:</span>
                   <div className="tab-list activity-tab-list" role="tablist">
                     <button
-                      className={activeTab === 'comments' ? 'tab-button active' : 'tab-button'}
-                      onClick={() => setActiveTab('comments')}
+                      className={activeActivityTab === 'comments' ? 'tab-button active' : 'tab-button'}
+                      onClick={() => onActivityTabChange('comments')}
                       type="button"
                     >
                       コメント
                     </button>
                     <button
-                      className={activeTab === 'history' ? 'tab-button active' : 'tab-button'}
-                      onClick={() => setActiveTab('history')}
+                      className={activeActivityTab === 'history' ? 'tab-button active' : 'tab-button'}
+                      onClick={() => onActivityTabChange('history')}
                       type="button"
                     >
                       履歴
@@ -581,9 +423,11 @@ export function TaskDetailPage({
                   </div>
                 </div>
 
-                {activeTab === 'comments' ? (
+                {activeActivityTab === 'comments' ? (
                   <div className="tab-panel activity-panel">
-                    {commentErrorMessage ? <div className="status-box error-box">{commentErrorMessage}</div> : null}
+                    {commentsState.commentErrorMessage ? (
+                      <div className="status-box error-box">{commentsState.commentErrorMessage}</div>
+                    ) : null}
 
                     <form className="comment-compose-form activity-compose-form" onSubmit={handleCreateComment}>
                       <div aria-hidden="true" className="activity-compose-avatar">
@@ -592,29 +436,33 @@ export function TaskDetailPage({
                       <div className="activity-compose-panel">
                         <textarea
                           className="comment-input activity-comment-input"
-                          onChange={(event) => setCommentDraft(event.target.value)}
+                          onChange={(event) => onCommentDraftChange(event.target.value)}
                           placeholder="コメントを追加する..."
                           rows={4}
                           value={commentDraft}
                         />
                         <div className="comment-compose-actions activity-compose-actions">
-                          <button className="primary-button activity-submit-button" disabled={isSubmittingComment} type="submit">
-                            {isSubmittingComment ? '投稿中...' : '投稿'}
+                          <button
+                            className="primary-button activity-submit-button"
+                            disabled={commentsState.isSubmittingComment}
+                            type="submit"
+                          >
+                            {commentsState.isSubmittingComment ? '投稿中...' : '投稿'}
                           </button>
                         </div>
                       </div>
                     </form>
 
-                    {isLoadingComments ? (
+                    {commentsState.isLoadingComments ? (
                       <p className="empty-message">コメントを読み込み中です...</p>
-                    ) : comments.length === 0 ? (
+                    ) : commentsState.comments.length === 0 ? (
                       <p className="empty-message">コメントはまだありません。</p>
                     ) : (
                       <div className="stack-list activity-stack-list">
-                        {comments.map((comment) => {
+                        {commentsState.comments.map((comment) => {
                           const canManage = canManageOwnResource(currentUserId, comment.createdBy?.id)
-                          const isEditingComment = editingCommentId === comment.id
-                          const isActiveComment = activeCommentId === comment.id
+                          const isEditingComment = commentsState.editingCommentId === comment.id
+                          const isActiveComment = commentsState.activeCommentId === comment.id
                           const isOwnComment = canManageOwnResource(currentUserId, comment.createdBy?.id)
                           const updatedAtLabel = comment.updatedAt ? formatDateTime(comment.updatedAt) : formatDateTime(comment.createdAt)
 
@@ -642,11 +490,7 @@ export function TaskDetailPage({
                                     {isEditingComment ? null : (
                                       <button
                                         className="activity-comment-button"
-                                        onClick={() => {
-                                          setEditingCommentId(comment.id)
-                                          setEditingCommentContent(comment.content)
-                                          setCommentErrorMessage('')
-                                        }}
+                                        onClick={() => commentsState.startEditingComment(comment)}
                                         type="button"
                                       >
                                         編集
@@ -668,17 +512,14 @@ export function TaskDetailPage({
                                 <div className="comment-edit-area activity-comment-edit-area">
                                   <textarea
                                     className="comment-input activity-comment-input"
-                                    onChange={(event) => setEditingCommentContent(event.target.value)}
+                                    onChange={(event) => commentsState.setEditingCommentContent(event.target.value)}
                                     rows={4}
-                                    value={editingCommentContent}
+                                    value={commentsState.editingCommentContent}
                                   />
                                   <div className="comment-compose-actions activity-compose-actions">
                                     <button
                                       className="activity-comment-button"
-                                      onClick={() => {
-                                        setEditingCommentId(null)
-                                        setEditingCommentContent('')
-                                      }}
+                                      onClick={commentsState.cancelEditingComment}
                                       type="button"
                                     >
                                       キャンセル
@@ -704,17 +545,19 @@ export function TaskDetailPage({
                   </div>
                 ) : null}
 
-                {activeTab === 'history' ? (
+                {activeActivityTab === 'history' ? (
                   <div className="tab-panel activity-panel">
-                    {activityErrorMessage ? <div className="status-box error-box">{activityErrorMessage}</div> : null}
+                    {activitiesState.activityErrorMessage ? (
+                      <div className="status-box error-box">{activitiesState.activityErrorMessage}</div>
+                    ) : null}
 
-                    {isLoadingActivities ? (
+                    {activitiesState.isLoadingActivities ? (
                       <p className="empty-message">履歴を読み込み中です...</p>
-                    ) : activities.length === 0 ? (
+                    ) : activitiesState.activities.length === 0 ? (
                       <p className="empty-message">履歴はまだありません。</p>
                     ) : (
                       <div className="stack-list activity-stack-list">
-                        {activities.map((activity) => (
+                        {activitiesState.activities.map((activity) => (
                           <article className="activity-item activity-history-card" key={activity.id}>
                             <div className="activity-item-header activity-history-header">
                               <span className="badge activity-type-badge">{activity.eventType}</span>

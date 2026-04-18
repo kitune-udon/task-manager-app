@@ -200,7 +200,24 @@ public class AttachmentService {
 
     private String generateStorageKey(Long taskId, String extension) {
         String date = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
-        return "tasks/" + taskId + "/" + date + "/" + UUID.randomUUID() + "." + extension;
+        String prefix = normalizeStoragePrefix(storageProperties.getS3Prefix());
+        return prefix + "/tasks/" + taskId + "/" + date + "/" + UUID.randomUUID() + "." + extension;
+    }
+
+    private String normalizeStoragePrefix(String prefix) {
+        if (!StringUtils.hasText(prefix)) {
+            return "attachments";
+        }
+
+        String normalized = prefix.trim();
+        while (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+
+        return StringUtils.hasText(normalized) ? normalized : "attachments";
     }
 
     private String extractExtension(String originalFileName) {

@@ -1,15 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { extractApiErrorCode, resolveUserMessage } from '../lib/apiError'
 import {
-  fetchNotifications,
   fetchTaskById,
+} from '../lib/taskApi'
+import {
+  fetchNotifications,
   fetchUnreadCount,
   markAllNotificationsAsRead,
   markNotificationAsRead,
   type NotificationItem,
-} from '../lib/taskApi'
+} from '../lib/notificationApi'
 
 const PAGE_SIZE = 20
+const ACTIVE_POLLING_INTERVAL_MS = 60000
+const INACTIVE_POLLING_INTERVAL_MS = 180000
 
 type Params = {
   isLoggedIn: boolean
@@ -45,6 +49,11 @@ export function useNotificationState({ isLoggedIn, go, routeKey }: Params) {
   const [activeNotificationId, setActiveNotificationId] = useState<number | null>(null)
   const [activeNotificationAction, setActiveNotificationAction] = useState<ActiveNotificationAction>(null)
   const [notificationErrorMessage, setNotificationErrorMessage] = useState('')
+  const [isFetchingUnreadCount, setIsFetchingUnreadCount] = useState(false)
+  const [isDocumentVisible, setIsDocumentVisible] = useState(() =>
+    typeof document === 'undefined' ? true : document.visibilityState !== 'hidden',
+  )
+  const unreadCountRequestRef = useRef<Promise<void> | null>(null)
 
   const applyReadState = (updatedNotification: NotificationItem, previousNotification: NotificationItem) => {
     setNotifications((current) => {
@@ -62,16 +71,35 @@ export function useNotificationState({ isLoggedIn, go, routeKey }: Params) {
     }
   }
 
-  const loadUnreadCount = async () => {
-    try {
-      const count = await fetchUnreadCount()
-      setUnreadCount(count)
-    } catch {
-      // Keep the previous unread count and avoid surfacing a page-level error for badge polling.
-    }
-  }
+  const loadUnreadCount = useCallback(async ({ skipIfFetching = false }: { skipIfFetching?: boolean } = {}) => {
+    if (unreadCountRequestRef.current) {
+      if (skipIfFetching) {
+        return
+      }
 
-  const loadNotifications = async (nextPage = currentPage, nextUnreadOnly = unreadOnly) => {
+      await unreadCountRequestRef.current
+      return
+    }
+
+    const request = (async () => {
+      setIsFetchingUnreadCount(true)
+
+      try {
+        const count = await fetchUnreadCount()
+        setUnreadCount(count)
+      } catch {
+        // Keep the previous unread count and avoid surfacing a page-level error for badge polling.
+      } finally {
+        unreadCountRequestRef.current = null
+        setIsFetchingUnreadCount(false)
+      }
+    })()
+
+    unreadCountRequestRef.current = request
+    await request
+  }, [])
+
+  const loadNotifications = useCallback(async (nextPage = currentPage, nextUnreadOnly = unreadOnly) => {
     setIsLoadingNotifications(true)
     setNotificationErrorMessage('')
 
@@ -97,7 +125,13 @@ export function useNotificationState({ isLoggedIn, go, routeKey }: Params) {
     } finally {
       setIsLoadingNotifications(false)
     }
-  }
+  }, [currentPage, unreadOnly])
+
+  const loadUnreadCountRef = useRef(loadUnreadCount)
+
+  useEffect(() => {
+    loadUnreadCountRef.current = loadUnreadCount
+  }, [loadUnreadCount])
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -110,17 +144,42 @@ export function useNotificationState({ isLoggedIn, go, routeKey }: Params) {
       setNotificationErrorMessage('')
       setIsLoadingNotifications(false)
       setIsMarkingAllRead(false)
+      setIsFetchingUnreadCount(false)
+      setIsDocumentVisible(true)
       setActiveNotificationId(null)
       setActiveNotificationAction(null)
+      unreadCountRequestRef.current = null
       return
     }
 
+    const intervalMs = isDocumentVisible ? ACTIVE_POLLING_INTERVAL_MS : INACTIVE_POLLING_INTERVAL_MS
     const timerId = window.setInterval(() => {
-      void loadUnreadCount()
-    }, 60000)
+      void loadUnreadCount({ skipIfFetching: true })
+    }, intervalMs)
 
     return () => {
       window.clearInterval(timerId)
+    }
+  }, [isDocumentVisible, isLoggedIn, loadUnreadCount])
+
+  useEffect(() => {
+    if (!isLoggedIn || typeof document === 'undefined') {
+      return
+    }
+
+    const handleVisibilityChange = () => {
+      const nextIsVisible = document.visibilityState !== 'hidden'
+      setIsDocumentVisible(nextIsVisible)
+
+      if (nextIsVisible) {
+        void loadUnreadCountRef.current()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [isLoggedIn])
 
@@ -130,15 +189,15 @@ export function useNotificationState({ isLoggedIn, go, routeKey }: Params) {
     }
 
     void loadUnreadCount()
-  }, [isLoggedIn, routeKey])
+  }, [isLoggedIn, loadUnreadCount, routeKey])
 
   useEffect(() => {
     if (!isLoggedIn) {
       return
     }
 
-    void loadNotifications(currentPage, unreadOnly)
-  }, [isLoggedIn, currentPage, unreadOnly])
+    void loadNotifications()
+  }, [isLoggedIn, loadNotifications])
 
   const handleOpenNotification = async (notification: NotificationItem) => {
     setActiveNotificationId(notification.id)
@@ -227,9 +286,12 @@ export function useNotificationState({ isLoggedIn, go, routeKey }: Params) {
     setTotalElements(0)
     setIsLoadingNotifications(false)
     setIsMarkingAllRead(false)
+    setIsFetchingUnreadCount(false)
+    setIsDocumentVisible(true)
     setActiveNotificationId(null)
     setActiveNotificationAction(null)
     setNotificationErrorMessage('')
+    unreadCountRequestRef.current = null
   }
 
   return {
@@ -241,6 +303,7 @@ export function useNotificationState({ isLoggedIn, go, routeKey }: Params) {
     totalElements,
     isLoadingNotifications,
     isMarkingAllRead,
+    isFetchingUnreadCount,
     activeNotificationId,
     activeNotificationAction,
     notificationErrorMessage,

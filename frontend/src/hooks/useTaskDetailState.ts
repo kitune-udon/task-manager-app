@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { resolveUserMessage } from '../lib/authApi'
 import { fetchTaskById, type TaskItem } from '../lib/taskApi'
 
+export type DetailTab = 'comments' | 'history'
+
 type Params = {
   selectedTaskId: string | null
 }
@@ -11,6 +13,8 @@ export function useTaskDetailState({ selectedTaskId }: Params) {
   const [detailErrorMessage, setDetailErrorMessage] = useState('')
   const [isLoadingDetail, setIsLoadingDetail] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [commentDraft, setCommentDraft] = useState('')
+  const [activeActivityTab, setActiveActivityTab] = useState<DetailTab>('comments')
 
   const loadTaskDetail = async (taskId: string) => {
     setIsLoadingDetail(true)
@@ -35,10 +39,14 @@ export function useTaskDetailState({ selectedTaskId }: Params) {
   useEffect(() => {
     if (selectedTaskId) {
       setIsEditing(false)
+      setCommentDraft('')
+      setActiveActivityTab('comments')
       void loadTaskDetail(selectedTaskId)
     } else {
       setSelectedTask(null)
       setIsEditing(false)
+      setCommentDraft('')
+      setActiveActivityTab('comments')
     }
   }, [selectedTaskId])
 
@@ -51,6 +59,8 @@ export function useTaskDetailState({ selectedTaskId }: Params) {
     setDetailErrorMessage('')
     setIsLoadingDetail(false)
     setIsEditing(false)
+    setCommentDraft('')
+    setActiveActivityTab('comments')
   }
 
   return {
@@ -60,6 +70,10 @@ export function useTaskDetailState({ selectedTaskId }: Params) {
     setDetailErrorMessage,
     isLoadingDetail,
     isEditing,
+    commentDraft,
+    setCommentDraft,
+    activeActivityTab,
+    setActiveActivityTab,
     startEditing: () => setIsEditing(true),
     cancelEditing: () => setIsEditing(false),
     loadTaskDetail,

@@ -84,6 +84,10 @@ export function AuthenticatedAppView({
           onDelete={() => void actions.handleDeleteTask()}
           isDeleting={mutation.isDeleting}
           isEditing={detail.isEditing}
+          activeActivityTab={detail.activeActivityTab}
+          onActivityTabChange={detail.setActiveActivityTab}
+          commentDraft={detail.commentDraft}
+          onCommentDraftChange={detail.setCommentDraft}
           detailErrorMessage={detail.detailErrorMessage}
           successMessage={successMessage}
           isLoadingDetail={detail.isLoadingDetail}

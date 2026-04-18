@@ -1,5 +1,5 @@
 import type { MouseEvent } from 'react'
-import type { NotificationItem } from '../lib/taskApi'
+import type { NotificationItem } from '../lib/notificationApi'
 import { TaskShell } from '../components/TaskShell'
 import { formatDateTime } from '../utils/format'
 
