@@ -2,6 +2,7 @@ package com.example.task.dto;
 
 import com.example.task.entity.ActivityEventType;
 import com.example.task.entity.ActivityTargetType;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Getter;
@@ -22,6 +23,7 @@ public class NotificationResponse {
     private String relatedTaskTitle;
     private ActivityTargetType targetType;
     private Long targetId;
+    private JsonNode detailJson;
     @JsonProperty("isRead")
     private boolean isRead;
     private LocalDateTime readAt;

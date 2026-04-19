@@ -535,6 +535,8 @@ class MvpApiIntegrationTests {
                 .andExpect(status().isOk())
                 .andReturn();
         JsonNode notifications = objectMapper.readTree(notificationResult.getResponse().getContentAsString()).path("content");
+        JsonNode attachmentUploadedNotification = findNotificationByEventType(notifications, "ATTACHMENT_UPLOADED");
+        assertEquals("evidence.txt", attachmentUploadedNotification.path("detailJson").path("fileName").asText());
         long notificationId = notifications.get(0).path("id").asLong();
 
         mockMvc.perform(get("/api/notifications/unread-count")
@@ -546,6 +548,7 @@ class MvpApiIntegrationTests {
                         .header("Authorization", bearer(assigneeToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(notificationId))
+                .andExpect(jsonPath("$.detailJson").exists())
                 .andExpect(jsonPath("$.readAt").exists())
                 .andExpect(jsonPath("$.isRead").value(true));
 
@@ -670,6 +673,16 @@ class MvpApiIntegrationTests {
             }
         }
         fail("Activity not found for event type: " + eventType);
+        return objectMapper.nullNode();
+    }
+
+    private JsonNode findNotificationByEventType(JsonNode notifications, String eventType) {
+        for (JsonNode notification : notifications) {
+            if (eventType.equals(notification.path("eventType").asText())) {
+                return notification;
+            }
+        }
+        fail("Notification not found for event type: " + eventType);
         return objectMapper.nullNode();
     }
 

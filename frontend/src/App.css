@@ -875,6 +875,46 @@ th { color: var(--text-subtle); font-size: 0.93rem; }
   font-size: 1.1rem;
   line-height: 1.8;
 }
+.activity-detail-block {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #e4ebf5;
+}
+.activity-detail-title {
+  margin: 0;
+  color: #617390;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.activity-change-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.activity-change-item {
+  display: grid;
+  gap: 4px;
+}
+.activity-change-field {
+  color: #415472;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.activity-change-values {
+  color: #5e7190;
+  font-size: 0.98rem;
+  line-height: 1.7;
+}
+.activity-detail-file {
+  margin: 0;
+  color: #415472;
+  font-size: 0.98rem;
+  line-height: 1.7;
+}
 .notification-toggle {
   display: inline-flex;
   align-items: center;
@@ -915,6 +955,34 @@ th { color: var(--text-subtle); font-size: 0.93rem; }
 .notification-row-button:disabled {
   cursor: progress;
   opacity: 0.8;
+}
+.notification-message-block {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+.notification-message-text {
+  display: block;
+  color: #324866;
+  line-height: 1.6;
+}
+.notification-detail-list {
+  display: grid;
+  gap: 4px;
+}
+.notification-detail-item {
+  display: block;
+  color: #5d7191;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+.notification-detail-file {
+  color: #465a79;
+  font-weight: 600;
+}
+.notification-detail-more {
+  color: #7083a1;
+  font-weight: 700;
 }
 .pagination-bar {
   display: flex;

@@ -1,6 +1,7 @@
 import type { MouseEvent } from 'react'
 import type { NotificationItem } from '../lib/notificationApi'
 import { TaskShell } from '../components/TaskShell'
+import { buildNotificationDetailLines, formatActivityEventTypeLabel } from '../utils/activityDisplay'
 import { formatDateTime } from '../utils/format'
 
 type Props = {
@@ -25,21 +26,6 @@ type Props = {
   onOpenNotification: (notification: NotificationItem) => void
   onMarkAsRead: (notification: NotificationItem) => void
   onMarkAllRead: () => void
-}
-
-function formatEventTypeLabel(eventType: string) {
-  const labels: Record<string, string> = {
-    TASK_CREATED: 'タスク追加',
-    TASK_UPDATED: 'タスク更新',
-    TASK_DELETED: 'タスク削除',
-    COMMENT_CREATED: 'コメント追加',
-    COMMENT_UPDATED: 'コメント更新',
-    COMMENT_DELETED: 'コメント削除',
-    ATTACHMENT_UPLOADED: '添付追加',
-    ATTACHMENT_DELETED: '添付削除',
-  }
-
-  return labels[eventType] ?? eventType
 }
 
 export function NotificationPage({
@@ -123,6 +109,7 @@ export function NotificationPage({
                       const isOpening = isActive && activeNotificationAction === 'open'
                       const isMarkingRead = isActive && activeNotificationAction === 'mark-read'
                       const openLabel = `${notification.relatedTaskTitle ?? '関連タスク'}の詳細を開く`
+                      const detailLines = buildNotificationDetailLines(notification.eventType, notification.detailJson)
 
                       return (
                         <tr
@@ -137,7 +124,7 @@ export function NotificationPage({
                               onClick={() => void onOpenNotification(notification)}
                               type="button"
                             >
-                              {formatEventTypeLabel(notification.eventType)}
+                              {formatActivityEventTypeLabel(notification.eventType)}
                             </button>
                           </td>
                           <td>
@@ -161,7 +148,32 @@ export function NotificationPage({
                               onClick={() => void onOpenNotification(notification)}
                               type="button"
                             >
-                              {notification.message}
+                              <span className="notification-message-block">
+                                <span className="notification-message-text">{notification.message}</span>
+                                {detailLines.length > 0 ? (
+                                  <span className="notification-detail-list">
+                                    {detailLines.map((line) => {
+                                      const isMoreLine = line.startsWith('他')
+                                      const isFileLine = line.startsWith('対象ファイル:')
+
+                                      return (
+                                        <span
+                                          className={[
+                                            'notification-detail-item',
+                                            isFileLine ? 'notification-detail-file' : '',
+                                            isMoreLine ? 'notification-detail-more' : '',
+                                          ]
+                                            .filter(Boolean)
+                                            .join(' ')}
+                                          key={line}
+                                        >
+                                          {line}
+                                        </span>
+                                      )
+                                    })}
+                                  </span>
+                                ) : null}
+                              </span>
                             </button>
                           </td>
                           <td>

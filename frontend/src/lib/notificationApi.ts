@@ -11,6 +11,7 @@ export type NotificationItem = {
   relatedTaskTitle?: string | null
   targetType?: string | null
   targetId?: number | null
+  detailJson?: unknown
   isRead: boolean
   readAt?: string | null
   createdAt?: string | null

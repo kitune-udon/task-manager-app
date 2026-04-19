@@ -98,6 +98,7 @@ public class NotificationService {
                 .relatedTaskTitle(notification.getActivityLog().getTask() != null ? notification.getActivityLog().getTask().getTitle() : null)
                 .targetType(notification.getActivityLog().getTargetType())
                 .targetId(notification.getActivityLog().getTargetId())
+                .detailJson(notification.getActivityLog().getDetailJson())
                 .isRead(notification.isRead())
                 .readAt(notification.getReadAt())
                 .createdAt(notification.getCreatedAt())

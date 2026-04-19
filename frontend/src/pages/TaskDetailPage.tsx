@@ -8,6 +8,11 @@ import { useTaskActivitiesState } from '../hooks/useTaskActivitiesState'
 import { useTaskAttachmentsState } from '../hooks/useTaskAttachmentsState'
 import { useTaskCommentsState } from '../hooks/useTaskCommentsState'
 import { TaskShell } from '../components/TaskShell'
+import {
+  extractAttachmentFileName,
+  extractTaskUpdateChanges,
+  formatActivityEventTypeLabel,
+} from '../utils/activityDisplay'
 import { formatDate, formatDateTime } from '../utils/format'
 
 type Props = {
@@ -557,15 +562,46 @@ export function TaskDetailPage({
                       <p className="empty-message">履歴はまだありません。</p>
                     ) : (
                       <div className="stack-list activity-stack-list">
-                        {activitiesState.activities.map((activity) => (
-                          <article className="activity-item activity-history-card" key={activity.id}>
-                            <div className="activity-item-header activity-history-header">
-                              <span className="badge activity-type-badge">{activity.eventType}</span>
-                              <span className="activity-history-date">{formatDateTime(activity.createdAt)}</span>
-                            </div>
-                            <p className="activity-summary">{activity.summary ?? '-'}</p>
-                          </article>
-                        ))}
+                        {activitiesState.activities.map((activity) => {
+                          const taskUpdateChanges = extractTaskUpdateChanges(activity.detailJson)
+                          const attachmentFileName = extractAttachmentFileName(activity.detailJson)
+                          const showTaskUpdateDetails = activity.eventType === 'TASK_UPDATED' && taskUpdateChanges.length > 0
+                          const showAttachmentDetails =
+                            (activity.eventType === 'ATTACHMENT_UPLOADED' || activity.eventType === 'ATTACHMENT_DELETED') &&
+                            !!attachmentFileName
+
+                          return (
+                            <article className="activity-item activity-history-card" key={activity.id}>
+                              <div className="activity-item-header activity-history-header">
+                                <span className="badge activity-type-badge">{formatActivityEventTypeLabel(activity.eventType)}</span>
+                                <span className="activity-history-date">{formatDateTime(activity.createdAt)}</span>
+                              </div>
+                              <p className="activity-summary">{activity.summary ?? '-'}</p>
+
+                              {showTaskUpdateDetails ? (
+                                <div className="activity-detail-block">
+                                  <ul className="activity-change-list">
+                                    {taskUpdateChanges.map((change) => (
+                                      <li className="activity-change-item" key={`${activity.id}-${change.field}`}>
+                                        <span className="activity-change-field">{change.fieldLabel}</span>
+                                        <span className="activity-change-values">
+                                          {change.oldValueLabel} → {change.newValueLabel}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
+
+                              {showAttachmentDetails ? (
+                                <div className="activity-detail-block">
+                                  <p className="activity-detail-title">対象ファイル</p>
+                                  <p className="activity-detail-file">- {attachmentFileName}</p>
+                                </div>
+                              ) : null}
+                            </article>
+                          )
+                        })}
                       </div>
                     )}
                   </div>
