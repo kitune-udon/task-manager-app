@@ -246,11 +246,19 @@ button { color: inherit; }
   z-index: 1;
 }
 .task-detail-content-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding-right: 6px;
+  gap: 16px;
+}
+.task-detail-content-body > .detail-layout-panel {
+  display: flex;
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  padding-right: 6px;
-  align-content: start;
+  overflow: hidden;
 }
 
 .panel {
@@ -448,23 +456,29 @@ th { color: var(--text-subtle); font-size: 0.93rem; }
   display: grid;
   grid-template-columns: minmax(0, 2.1fr) minmax(300px, 0.9fr);
   gap: 28px;
+  flex: 1;
+  min-height: 0;
 }
 .task-detail-main-card, .task-side-card {
   border: 1px solid var(--line);
   border-radius: 26px;
   background: rgba(255,255,255,0.95);
   box-shadow: var(--shadow);
+  min-height: 0;
 }
 .task-detail-main-card {
   padding: 28px;
   display: grid;
   gap: 24px;
+  align-content: start;
+  overflow-y: auto;
 }
 .task-detail-side-card {
   padding: 26px;
   display: grid;
   align-content: start;
   gap: 18px;
+  overflow-y: auto;
 }
 .task-detail-section {
   display: grid;
@@ -1023,7 +1037,20 @@ th { color: var(--text-subtle); font-size: 0.93rem; }
   .sidebar { width: 250px; }
   .content-area { margin-left: 250px; }
   .task-detail-layout { grid-template-columns: 1fr; }
-  .task-detail-content-body { padding-right: 2px; }
+  .task-detail-content-body {
+    overflow: visible;
+    padding-right: 2px;
+  }
+  .task-detail-content-body > .detail-layout-panel {
+    display: block;
+    flex: initial;
+    min-height: auto;
+    overflow: visible;
+  }
+  .task-detail-main-card,
+  .task-detail-side-card {
+    overflow: visible;
+  }
 }
 
 @media (max-width: 768px) {
