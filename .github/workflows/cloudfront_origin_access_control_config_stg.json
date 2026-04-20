@@ -1,0 +1,7 @@
+{
+  "Name": "taskflow-stg-oac-frontend",
+  "Description": "OAC for taskflow staging frontend bucket",
+  "SigningProtocol": "sigv4",
+  "SigningBehavior": "always",
+  "OriginAccessControlOriginType": "s3"
+}

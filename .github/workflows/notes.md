@@ -4,8 +4,10 @@
   - `.github/workflows/ci.yml`
   - `.github/workflows/deploy-backend-prd.yml`
   - `.github/workflows/deploy-frontend-prd.yml`
-- OIDC trust policy は `repo:kitune-udon/task-manager-app:environment:production` のみを信頼する。
-- ブランチ制限は GitHub Environment `production` 側で行い、deploy 対象は `develop` のみにする。
+  - `.github/workflows/deploy-backend-stg.yml`
+  - `.github/workflows/deploy-frontend-stg.yml`
+- OIDC trust policy は Environment 単位で分離し、production は `repo:kitune-udon/task-manager-app:environment:production`、staging は `repo:kitune-udon/task-manager-app:environment:staging` を信頼する。
+- ブランチ制限は GitHub Environment 側で行い、production は `master`、staging は `develop` を deploy 対象にする。
 - backend deploy workflow は失敗時に `describe-environments` と `describe-events` を出力する。
 - 本番向けの固定値は workflow に直書きせず、`production` Environment Variables に登録する。
 - backend 用 artifact バケットは、backend deploy workflow を使う前に作成しておく必要がある。
@@ -13,6 +15,7 @@
 - frontend は `npm`、`package-lock.json`、Vite 8 前提のため、workflow では Node `22.12.0` を使う。
 - frontend deploy workflow は、S3 への静的ファイル反映に加えて CloudFront Function による SPA deep link rewrite も管理する。
 - API の 401/403/404 を `index.html` に誤変換しないため、distribution 全体の `403/404 -> /index.html -> 200` CustomErrorResponses には依存しない。
+- staging frontend deploy workflow では `taskflow-stg-spa-router` を使い、production の CloudFront Function と分離する。
 - backend deploy の検証では、初期ドラフトより追加の AWS 権限が必要だった。
   - Elastic Beanstalk 管理 S3 バケットの bootstrap とオブジェクト操作
   - `awseb-*` / `eb-*` CloudFormation stack の参照権限
@@ -21,4 +24,32 @@
   - `/aws/elasticbeanstalk/*` 向け CloudWatch Logs の参照・基本管理権限
 - frontend deploy では CloudFront distribution / function 更新権限も必要だった。
 - `deploy-backend-prd.yml` は、Elastic Beanstalk が deploy failure event を出した場合や、期待しない `VersionLabel` のまま `Ready` に戻った場合に即失敗するよう改善した。
+- `deploy-backend-stg.yml` は production 版と同じ待機・失敗検知ロジックを持ち、deploy 先だけ `staging` に切り替える。
 - `production` を単独 reviewer で初回検証する場合は、`Prevent self-review` を一時的に無効化する必要があることがある。初回の疎通確認が終わったら再度有効化する。
+
+## STG 反映対象
+
+- GitHub Actions workflow
+  - `.github/workflows/deploy-backend-stg.yml`
+  - `.github/workflows/deploy-frontend-stg.yml`
+- production workflow の branch 既定値修正
+  - `.github/workflows/deploy-backend-prd.yml`
+  - `.github/workflows/deploy-frontend-prd.yml`
+- GitHub Environment / 運用メモ
+  - `.github/workflows/github_environment_variables_and_secrets.md`
+  - `.github/workflows/notes.md`
+- AWS IAM / EB / CloudFront / S3 の設定控え
+  - `.github/workflows/github_actions_oidc_trust_policy_stg.json`
+  - `.github/workflows/github_actions_deploy_role_policy_stg.json`
+  - `.github/workflows/elastic_beanstalk_ec2_ssm_read_policy_stg.json`
+  - `.github/workflows/elastic_beanstalk_environment_settings_stg.json`
+  - `.github/workflows/cloudfront_origin_access_control_config_stg.json`
+  - `.github/workflows/cloudfront_spa_function_config_stg.json`
+  - `.github/workflows/cloudfront_distribution_config_stg.json`
+  - `.github/workflows/s3_frontend_bucket_policy_stg.json`
+
+## ブランチ反映方針
+
+- default branch 側で workflow を認識できるよう、まず `master` へ反映する。
+- staging Environment は `develop` deploy 前提のため、同じ変更を `develop` にも反映する。
+- `master` と `develop` へ別々に手作業で入れず、同じ commit を merge / cherry-pick して差分をそろえる。
