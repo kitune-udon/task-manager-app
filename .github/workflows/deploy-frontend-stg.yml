@@ -1,14 +1,14 @@
-name: deploy-frontend-prd
+name: deploy-frontend-stg
 
 on:
   workflow_dispatch:
     inputs:
-      # デプロイ対象の ref。通常は master を想定。
-      # 必要ならコミット SHA を指定して、その時点の frontend を本番へ反映できる。
+      # デプロイ対象の ref。通常は develop を想定。
+      # 必要ならコミット SHA を指定して、その時点の frontend を staging へ反映できる。
       ref:
-        description: 'Deploy target ref. Example: master or commit SHA'
+        description: 'Deploy target ref. Example: develop or commit SHA'
         required: false
-        default: 'master'
+        default: 'develop'
       # 実行時メモ。再デプロイ理由や確認ポイントを残したいときに使う。
       deploy_note:
         description: 'Optional memo for this deploy'
@@ -23,22 +23,22 @@ permissions:
 
 jobs:
   deploy:
-    name: deploy frontend to production
+    name: deploy frontend to staging
     runs-on: ubuntu-latest
 
-    # production Environment を明示することで、承認ルールと
+    # staging Environment を明示することで、承認ルールと
     # environment-level variables / secrets をこの job に適用する。
     environment:
-      name: production
+      name: staging
 
-    # production Environment に登録した Variables を job 単位で読む。
+    # staging Environment に登録した Variables を job 単位で読む。
     # workflow-level ではなく job-level に置き、environment 解決後に参照する。
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       AWS_GITHUB_ACTIONS_DEPLOY_ROLE_ARN: ${{ vars.AWS_GITHUB_ACTIONS_DEPLOY_ROLE_ARN }}
       FRONTEND_BUCKET: ${{ vars.FRONTEND_BUCKET }}
       CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
-      CLOUDFRONT_SPA_FUNCTION_NAME: taskflow-prd-spa-router
+      CLOUDFRONT_SPA_FUNCTION_NAME: taskflow-stg-spa-router
 
     # frontend 配下で npm build を実行するため、作業ディレクトリを固定する。
     defaults:
@@ -73,7 +73,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 本番配信用の静的ファイルを dist/ に作成する。
+      # staging 配信用の静的ファイルを dist/ に作成する。
       - name: Build frontend
         run: npm run build
 

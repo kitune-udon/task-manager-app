@@ -1,14 +1,14 @@
-name: deploy-backend-prd
+name: deploy-backend-stg
 
 on:
   workflow_dispatch:
     inputs:
-      # デプロイ対象の ref。通常は master を想定。
-      # 必要ならコミット SHA を直接指定して、その時点の内容を本番へ反映できる。
+      # デプロイ対象の ref。通常は develop を想定。
+      # 必要ならコミット SHA を直接指定して、その時点の内容を staging へ反映できる。
       ref:
-        description: 'Deploy target ref. Example: master or commit SHA'
+        description: 'Deploy target ref. Example: develop or commit SHA'
         required: false
-        default: 'master'
+        default: 'develop'
       # 実行時メモ。障害対応や再デプロイ理由を Actions 実行履歴に残したいときに使う。
       deploy_note:
         description: 'Optional memo for this deploy'
@@ -23,10 +23,10 @@ permissions:
 
 jobs:
   deploy:
-    name: deploy backend to production
+    name: deploy backend to staging
     runs-on: ubuntu-latest
 
-    # deploy 前にも backend テストを通すため、本番 deploy job 側にも
+    # deploy 前にも backend テストを通すため、staging deploy job 側にも
     # PostgreSQL service を用意して CI と同じ条件で検証する。
     services:
       postgres:
@@ -43,12 +43,12 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-    # GitHub Environment を明示することで、production の承認ルールと
+    # GitHub Environment を明示することで、staging の承認ルールと
     # environment-level variables / secrets をこの job で使えるようにする。
     environment:
-      name: production
+      name: staging
 
-    # production Environment に登録した Variables を job 単位で読み込む。
+    # staging Environment に登録した Variables を job 単位で読み込む。
     # workflow-level ではなく job-level に置くことで、environment 解決後に参照する。
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
@@ -95,7 +95,7 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # まずテストを通して、壊れた backend を本番へ出さないようにする。
+      # まずテストを通して、壊れた backend を staging へ出さないようにする。
       - name: Run tests
         run: ./gradlew test --no-daemon
 
