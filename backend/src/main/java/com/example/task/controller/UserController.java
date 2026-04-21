@@ -18,12 +18,19 @@ public class UserController {
 
     private final UserService userService;
 
+    /**
+     * ユーザーAPIコントローラーを生成する。
+     *
+     * @param userService ユーザーサービス
+     */
     public UserController(UserService userService) {
         this.userService = userService;
     }
 
     /**
      * タスク担当者選択などで使うユーザー一覧を返す。
+     *
+     * @return ユーザー候補一覧
      */
     @GetMapping
     public ResponseEntity<List<UserResponse>> getUsers() {

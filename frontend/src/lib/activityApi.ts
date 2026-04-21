@@ -2,6 +2,9 @@ import { apiClient } from './apiClient'
 import { unwrapApiData } from './apiTypes'
 import type { PageResponse, TaskUser } from './taskApi'
 
+/**
+ * タスク履歴として表示するアクティビティログ。
+ */
 export type ActivityItem = {
   id: number
   eventType: string
@@ -14,7 +17,11 @@ export type ActivityItem = {
   createdAt?: string | null
 }
 
+/**
+ * 指定タスクのアクティビティ一覧を取得する。
+ */
 export async function fetchActivities(taskId: number | string, size = 100): Promise<ActivityItem[]> {
+  // 詳細画面では直近履歴をまとめて表示するため、先頭ページを指定件数分だけ取得する。
   const response = await apiClient.get<PageResponse<ActivityItem>>(`/api/tasks/${taskId}/activities`, {
     params: { page: 0, size },
   })

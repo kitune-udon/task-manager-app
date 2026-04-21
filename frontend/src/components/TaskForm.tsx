@@ -2,6 +2,9 @@ import type { FormEvent } from 'react'
 import type { TaskPriority, TaskStatus } from '../lib/taskApi'
 import type { AssigneeOption, TaskFormBindings } from '../hooks/taskStateShared'
 
+/**
+ * タスク作成・編集フォームで共有する入力状態、選択肢、送信/キャンセル操作。
+ */
 type Props = {
   form: TaskFormBindings
   isSubmitting: boolean
@@ -17,6 +20,9 @@ type Props = {
   assigneeOptionsError: string
 }
 
+/**
+ * タスクの作成画面と編集画面で使う共通フォーム。
+ */
 export function TaskForm({
   form,
   isSubmitting,
@@ -104,6 +110,7 @@ export function TaskForm({
           className={form.fieldErrors.assignedUserId ? 'input-error' : ''}
           value={form.assignedUserId}
           onChange={(e) => form.onAssignedUserIdChange(e.target.value)}
+          // 候補読み込み中は古い選択肢で誤って担当者を変更しないようにする。
           disabled={isLoadingAssigneeOptions}
         >
           {assigneeOptions.map((option) => (

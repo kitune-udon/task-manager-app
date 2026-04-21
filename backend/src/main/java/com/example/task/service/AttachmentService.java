@@ -68,6 +68,18 @@ public class AttachmentService {
     private final StorageProperties storageProperties;
     private final StructuredLogService structuredLogService;
 
+    /**
+     * コンストラクタ。
+     *
+     * @param taskAttachmentRepository 添付ファイルリポジトリ
+     * @param userRepository ユーザーリポジトリ
+     * @param currentUserProvider 現在のユーザー提供者
+     * @param taskAuthorizationService タスク認可サービス
+     * @param activityNotificationService アクティビティ通知サービス
+     * @param attachmentStorageService 添付ファイルストレージサービス
+     * @param storageProperties ストレージ設定
+     * @param structuredLogService 構造化ログサービス
+     */
     public AttachmentService(
             TaskAttachmentRepository taskAttachmentRepository,
             UserRepository userRepository,
@@ -88,6 +100,13 @@ public class AttachmentService {
         this.structuredLogService = structuredLogService;
     }
 
+    /**
+     * 指定されたタスクの添付ファイル一覧を取得します。
+     * 現在のユーザーがタスクを閲覧可能であることを確認してから取得します。
+     *
+     * @param taskId タスクID
+     * @return 添付ファイルレスポンスリスト
+     */
     @Transactional(readOnly = true)
     public List<AttachmentResponse> getAttachments(Long taskId) {
         Long currentUserId = currentUserProvider.getCurrentUserId();
@@ -98,6 +117,14 @@ public class AttachmentService {
                 .toList();
     }
 
+    /**
+     * タスクに添付ファイルをアップロードします。
+     * ファイル検証、ストレージ保存、DB補償削除を処理します。
+     *
+     * @param taskId タスクID
+     * @param file アップロードするファイル
+     * @return アップロードされた添付ファイルレスポンス
+     */
     @Transactional
     public AttachmentResponse uploadAttachment(Long taskId, MultipartFile file) {
         User currentUser = resolveCurrentUser();
@@ -132,6 +159,13 @@ public class AttachmentService {
         }
     }
 
+    /**
+     * 添付ファイルをダウンロードします。
+     * 現在のユーザーがタスクを閲覧可能であることを確認してから取得します。
+     *
+     * @param attachmentId 添付ファイルID
+     * @return ファイルコンテンツとメタデータを含むダウンロード結果
+     */
     @Transactional(readOnly = true)
     public DownloadResult downloadAttachment(Long attachmentId) {
         User currentUser = resolveCurrentUser();
@@ -148,6 +182,12 @@ public class AttachmentService {
         return new DownloadResult(attachment.getOriginalFileName(), storedAttachment.content(), storedAttachment.contentType());
     }
 
+    /**
+     * 添付ファイルを削除します。削除を実施して将来的に補償削除を処理します。
+     * アップロードしたユーザーのみ削除可能です。
+     *
+     * @param attachmentId 添付ファイルID
+     */
     @Transactional
     public void deleteAttachment(Long attachmentId) {
         User currentUser = resolveCurrentUser();
@@ -168,6 +208,14 @@ public class AttachmentService {
         activityNotificationService.recordAttachmentDeleted(currentUser, attachment);
     }
 
+    /**
+     * アップロードされたファイルを検証します。
+     * ファイル存在性、サイズ、拡張子、コンテントタイプ、件数、合計サイズを検証します。
+     *
+     * @param file 検証するファイル
+     * @param taskId タスクID
+     * @throws BusinessException 検証失敗時
+     */
     private void validateFile(MultipartFile file, Long taskId) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(ErrorCode.FILE_001);
@@ -198,12 +246,27 @@ public class AttachmentService {
         }
     }
 
+    /**
+     * ストレージキーを生成します。
+     * 形式: {prefix}/tasks/{taskId}/{date}/{uuid}.{extension}
+     *
+     * @param taskId タスクID
+     * @param extension ファイル拡張子
+     * @return 生成されたストレージキー
+     */
     private String generateStorageKey(Long taskId, String extension) {
         String date = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
         String prefix = normalizeStoragePrefix(storageProperties.getS3Prefix());
         return prefix + "/tasks/" + taskId + "/" + date + "/" + UUID.randomUUID() + "." + extension;
     }
 
+    /**
+     * ストレージプリフィクスを正規化します。
+     * 前後のスラッシュを削除し、空文字列を「attachments」に置き換えます。
+     *
+     * @param prefix 正規化するプリフィクス
+     * @return 正規化されたプリフィクス
+     */
     private String normalizeStoragePrefix(String prefix) {
         if (!StringUtils.hasText(prefix)) {
             return "attachments";
@@ -220,6 +283,13 @@ public class AttachmentService {
         return StringUtils.hasText(normalized) ? normalized : "attachments";
     }
 
+    /**
+     * ファイル名から拡張子を抽出します。
+     *
+     * @param originalFileName ファイル名
+     * @return 小文字化された拡張子
+     * @throws BusinessException 拡張子がない場合
+     */
     private String extractExtension(String originalFileName) {
         if (!StringUtils.hasText(originalFileName) || !originalFileName.contains(".")) {
             throw new BusinessException(ErrorCode.FILE_006);
@@ -228,6 +298,13 @@ public class AttachmentService {
         return originalFileName.substring(originalFileName.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
     }
 
+    /**
+     * SHA-256チェックサムを計算します。
+     *
+     * @param file チェックサムを計算するファイル
+     * @return SHA-256ハッシュ（十六進数表記）
+     * @throws StorageException 計算失敗時
+     */
     private String calculateChecksum(MultipartFile file) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -242,6 +319,13 @@ public class AttachmentService {
         }
     }
 
+    /**
+     * ストレージを補償削除します。
+     * DB保存失敗時にストレージを削除します。
+     * 削除失敗はログを記録して処理を続けます。
+     *
+     * @param storageKey 削除するストレージキー
+     */
     private void compensateStorageDelete(String storageKey) {
         try {
             attachmentStorageService.delete(storageKey);
@@ -254,12 +338,24 @@ public class AttachmentService {
         }
     }
 
+    /**
+     * 現在ログイン中のユーザーを得る。
+     *
+     * @return 現在のユーザー
+     * @throws ResourceNotFoundException ユーザーが見つからない場合
+     */
     private User resolveCurrentUser() {
         Long currentUserId = currentUserProvider.getCurrentUserId();
         return userRepository.findById(currentUserId)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.USR_002, "ユーザーが存在しません"));
     }
 
+    /**
+     * 添付ファイルをレスポンスDTOに変換します。
+     *
+     * @param attachment 添付ファイルエンティティ
+     * @return 添付ファイルレスポンスDTO
+     */
     private AttachmentResponse toResponse(TaskAttachment attachment) {
         return AttachmentResponse.builder()
                 .id(attachment.getId())
@@ -276,6 +372,14 @@ public class AttachmentService {
                 .build();
     }
 
+    /**
+     * ダウンロード結果を表現します。
+     * ファイル名、コンテント、コンテントタイプを保持します。
+     *
+     * @param fileName ファイル名
+     * @param content ファイルコンテンツ
+     * @param contentType コンテントタイプ
+     */
     public record DownloadResult(String fileName, byte[] content, String contentType) {
     }
 }

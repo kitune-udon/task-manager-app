@@ -3,6 +3,9 @@ import { resolveUserMessage } from '../lib/authApi'
 import { extractApiErrorCode } from '../lib/apiError'
 import { createComment, deleteComment, fetchComments, updateComment, type TaskComment } from '../lib/commentApi'
 
+/**
+ * コメント状態hookが必要とする対象タスク、入力中コメント、関連データの再読み込み操作。
+ */
 type Params = {
   selectedTaskId: number | string | null
   commentDraft: string
@@ -12,6 +15,9 @@ type Params = {
   onRefreshUnreadCount: () => Promise<void>
 }
 
+/**
+ * 選択中タスクのコメント一覧、投稿、編集、削除状態を管理する。
+ */
 export function useTaskCommentsState({
   selectedTaskId,
   commentDraft,
@@ -28,6 +34,9 @@ export function useTaskCommentsState({
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
   const [activeCommentId, setActiveCommentId] = useState<number | null>(null)
 
+  /**
+   * 指定タスクのコメント一覧を取得する。
+   */
   const loadComments = useCallback(async (taskId = selectedTaskId) => {
     if (!taskId) {
       setComments([])
@@ -58,6 +67,7 @@ export function useTaskCommentsState({
     setEditingCommentContent('')
 
     if (!selectedTaskId) {
+      // タスク未選択時は前回タスクのコメント一覧や編集中状態を残さない。
       setComments([])
       setCommentErrorMessage('')
       return
@@ -66,17 +76,26 @@ export function useTaskCommentsState({
     void loadComments(selectedTaskId)
   }, [loadComments, selectedTaskId])
 
+  /**
+   * 指定コメントを編集モードにする。
+   */
   const startEditingComment = (comment: TaskComment) => {
     setEditingCommentId(comment.id)
     setEditingCommentContent(comment.content)
     setCommentErrorMessage('')
   }
 
+  /**
+   * コメント編集モードを解除する。
+   */
   const cancelEditingComment = () => {
     setEditingCommentId(null)
     setEditingCommentContent('')
   }
 
+  /**
+   * 入力中のコメントを現在のタスクへ投稿する。
+   */
   const submitComment = async () => {
     if (!selectedTaskId) {
       return
@@ -94,6 +113,7 @@ export function useTaskCommentsState({
     try {
       await createComment(selectedTaskId, { content })
       setCommentDraft('')
+      // コメント投稿は履歴・詳細・通知未読数にも影響するため、関連データをまとめて更新する。
       await Promise.all([loadComments(selectedTaskId), onReloadActivities(), onReloadDetail(), onRefreshUnreadCount()])
     } catch (error) {
       setCommentErrorMessage(resolveUserMessage(error))
@@ -102,6 +122,9 @@ export function useTaskCommentsState({
     }
   }
 
+  /**
+   * 編集中の内容でコメントを保存する。
+   */
   const saveEditedComment = async (comment: TaskComment) => {
     const content = editingCommentContent.trim()
     if (!content) {
@@ -118,9 +141,11 @@ export function useTaskCommentsState({
         version: Number(comment.version ?? 0),
       })
       cancelEditingComment()
+      // コメント本文の変更を一覧・履歴・詳細へ反映する。
       await Promise.all([loadComments(comment.taskId), onReloadActivities(), onReloadDetail()])
     } catch (error) {
       if (extractApiErrorCode(error) === 'ERR-COMMENT-006') {
+        // 楽観ロック競合時は最新状態へ戻し、ユーザーに再編集を促す。
         cancelEditingComment()
         await Promise.all([loadComments(comment.taskId), onReloadActivities()])
         setCommentErrorMessage('他のユーザーによりコメントが更新されました。最新状態を再読み込みしました。内容を確認して再編集してください。')
@@ -133,6 +158,9 @@ export function useTaskCommentsState({
     }
   }
 
+  /**
+   * コメントを削除する。
+   */
   const removeComment = async (comment: TaskComment) => {
     setActiveCommentId(comment.id)
     setCommentErrorMessage('')
@@ -142,6 +170,7 @@ export function useTaskCommentsState({
       if (editingCommentId === comment.id) {
         cancelEditingComment()
       }
+      // 削除後はコメント一覧だけでなく、履歴と詳細も最新化する。
       await Promise.all([loadComments(comment.taskId), onReloadActivities(), onReloadDetail()])
     } catch (error) {
       setCommentErrorMessage(resolveUserMessage(error))

@@ -3,6 +3,9 @@ import { useTaskDetailState } from './useTaskDetailState'
 import { useTaskListState } from './useTaskListState'
 import { useTaskMutationState } from './useTaskMutationState'
 
+/**
+ * タスク状態hookが必要とする認証状態、選択中タスク、画面遷移、共通メッセージ操作。
+ */
 type Params = {
   isLoggedIn: boolean
   selectedTaskId: string | null
@@ -12,6 +15,9 @@ type Params = {
   refreshUnreadCount: () => Promise<void>
 }
 
+/**
+ * タスク関連画面が利用する一覧・詳細・変更・担当者候補の状態と操作。
+ */
 export type UseTaskStateResult = {
   list: ReturnType<typeof useTaskListState>
   detail: ReturnType<typeof useTaskDetailState>
@@ -31,6 +37,9 @@ export type UseTaskStateResult = {
   }
 }
 
+/**
+ * タスク一覧、詳細、作成/更新/削除、担当者候補の各hookを束ね、画面遷移用アクションを提供する。
+ */
 export function useTaskState({
   isLoggedIn,
   selectedTaskId,
@@ -45,6 +54,7 @@ export function useTaskState({
     isLoggedIn,
     selectedTask: detail.selectedTask,
   })
+  // mutation hookには、更新後に同期が必要な一覧・詳細・担当者候補・通知の操作を渡す。
   const mutation = useTaskMutationState({
     selectedTaskId,
     selectedTask: detail.selectedTask,
@@ -60,6 +70,9 @@ export function useTaskState({
     go,
   })
 
+  /**
+   * タスク一覧へ戻り、一覧を再取得する。
+   */
   const handleShowList = async () => {
     resetMessages()
     list.clearTaskErrorMessage()
@@ -68,6 +81,9 @@ export function useTaskState({
     await list.loadTasks()
   }
 
+  /**
+   * タスク作成画面へ移動する。
+   */
   const handleShowCreate = () => {
     resetMessages()
     list.clearTaskErrorMessage()
@@ -75,6 +91,9 @@ export function useTaskState({
     go('/tasks/new')
   }
 
+  /**
+   * 指定タスクの詳細画面へ移動する。
+   */
   const handleShowDetail = (taskId: number | string) => {
     resetMessages()
     list.clearTaskErrorMessage()
@@ -82,6 +101,9 @@ export function useTaskState({
     go(`/tasks/${taskId}`)
   }
 
+  /**
+   * 詳細画面を編集モードへ切り替える。
+   */
   const handleStartEdit = () => {
     resetMessages()
     detail.clearDetailErrorMessage()
@@ -89,12 +111,19 @@ export function useTaskState({
     detail.startEditing()
   }
 
+  /**
+   * 編集内容を破棄し、詳細表示へ戻る。
+   */
   const handleCancelEdit = () => {
     mutation.resetEditForm()
     detail.cancelEditing()
   }
 
+  /**
+   * ログアウト時にタスク関連の状態をすべて初期化する。
+   */
   const clearTaskStateOnLogout = () => {
+    // 次のログインユーザーに前ユーザーの一覧・詳細・フォーム状態を見せない。
     list.clearListState()
     detail.clearDetailState()
     assignableUsers.clearAssignableUsersState()

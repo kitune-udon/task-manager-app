@@ -24,6 +24,12 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
     private final ObjectMapper objectMapper;
     private final StructuredLogService structuredLogService;
 
+    /**
+     * アクセス拒否ハンドラーを生成する。
+     *
+     * @param objectMapper JSONシリアライザー
+     * @param structuredLogService 構造化ログサービス
+     */
     public CustomAccessDeniedHandler(
             ObjectMapper objectMapper,
             StructuredLogService structuredLogService
@@ -32,6 +38,16 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
         this.structuredLogService = structuredLogService;
     }
 
+    /**
+     * 認証済みユーザーの権限不足を処理し、403のJSONエラーレスポンスを返す。
+     *
+     * <p>アクセス拒否を業務エラーとして構造化ログに記録し、API共通のエラー形式へ整形する。</p>
+     *
+     * @param request HTTPリクエスト
+     * @param response HTTPレスポンス
+     * @param accessDeniedException アクセス拒否例外
+     * @throws IOException レスポンス書き込みに失敗した場合
+     */
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response,
                        AccessDeniedException accessDeniedException) throws IOException {

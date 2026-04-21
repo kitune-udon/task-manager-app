@@ -35,6 +35,15 @@ public class CommentService {
     private final TaskAuthorizationService taskAuthorizationService;
     private final ActivityNotificationService activityNotificationService;
 
+    /**
+     * コンストラクタ。
+     *
+     * @param taskCommentRepository コメントリポジトリ
+     * @param userRepository ユーザーリポジトリ
+     * @param currentUserProvider 現在のユーザー提供者
+     * @param taskAuthorizationService タスク認可サービス
+     * @param activityNotificationService アクティビティ通知サービス
+     */
     public CommentService(
             TaskCommentRepository taskCommentRepository,
             UserRepository userRepository,
@@ -49,6 +58,15 @@ public class CommentService {
         this.activityNotificationService = activityNotificationService;
     }
 
+    /**
+     * 指定されたタスクのコメント一覧を取得します。ページネーション対応。
+     * 現在のユーザーがタスクを閲覧可能であることを確認してから取得します。
+     *
+     * @param taskId タスクID
+     * @param page ページ番号
+     * @param size 1ページあたりの件数
+     * @return ページネーション付きのコメントレスポンスリスト
+     */
     @Transactional(readOnly = true)
     public PageResponse<CommentResponse> getComments(Long taskId, int page, int size) {
         Long currentUserId = currentUserProvider.getCurrentUserId();
@@ -63,6 +81,14 @@ public class CommentService {
                 .build();
     }
 
+    /**
+     * タスクにコメントを作成します。
+     * 現在のユーザーがタスクを閲覧可能であることを確認してから作成します。
+     *
+     * @param taskId タスクID
+     * @param request コメント作成リクエスト
+     * @return 作成されたコメントレスポンス
+     */
     @Transactional
     public CommentResponse createComment(Long taskId, CommentCreateRequest request) {
         User currentUser = resolveCurrentUser();
@@ -80,6 +106,16 @@ public class CommentService {
         return toResponse(saved);
     }
 
+    /**
+     * コメントを更新します。
+     * 所有者を確認し、断蔵不一致検証を処理します。
+     *
+     * @param commentId コメントID
+     * @param request コメント更新リクエスト
+     * @return 更新されたコメントレスポンス
+     * @throws BusinessException 所有者でない場合
+     * @throws ConflictException バージョン不一致時
+     */
     @Transactional
     public CommentResponse updateComment(Long commentId, CommentUpdateRequest request) {
         User currentUser = resolveCurrentUser();
@@ -106,6 +142,14 @@ public class CommentService {
         }
     }
 
+    /**
+     * コメントを削除します。
+     * 所有者のみ削除可能で、論理削除（論理削除）を処理します。
+     *
+     * @param commentId コメントID
+     * @throws BusinessException 所有者でない場合
+     * @throws ResourceNotFoundException コメントが見つからない場合
+     */
     @Transactional
     public void deleteComment(Long commentId) {
         User currentUser = resolveCurrentUser();
@@ -123,23 +167,48 @@ public class CommentService {
         activityNotificationService.recordCommentDeleted(currentUser, comment);
     }
 
+    /**
+     * 删除されていないコメントを取得します。
+     *
+     * @param commentId コメントID
+     * @return アクティブなコメント
+     * @throws ResourceNotFoundException コメントが見つからない場合
+     */
     private TaskComment getActiveComment(Long commentId) {
         return taskCommentRepository.findByIdAndDeletedAtIsNull(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.COMMENT_002, "コメントが存在しません"));
     }
 
+    /**
+     * 覚正事武がアクティブであることを確認します。
+     *
+     * @param comment 検証するコメント
+     * @throws ResourceNotFoundException タスクが存在しない場合
+     */
     private void ensureParentTaskActive(TaskComment comment) {
         if (comment.getTask() == null || comment.getTask().getDeletedAt() != null) {
             throw new ResourceNotFoundException(ErrorCode.RES_TASK_404, "タスクが存在しません");
         }
     }
 
+    /**
+     * 現在ログイン中のユーザーを取得します。
+     *
+     * @return 現在のユーザー
+     * @throws ResourceNotFoundException ユーザーが見つからない場合
+     */
     private User resolveCurrentUser() {
         Long currentUserId = currentUserProvider.getCurrentUserId();
         return userRepository.findById(currentUserId)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.USR_002, "ユーザーが存在しません"));
     }
 
+    /**
+     * コメントをレスポンスDTOに変換します。
+     *
+     * @param comment コメントエンティティ
+     * @return コメントレスポンスDTO
+     */
     private CommentResponse toResponse(TaskComment comment) {
         return CommentResponse.builder()
                 .id(comment.getId())
@@ -152,6 +221,12 @@ public class CommentService {
                 .build();
     }
 
+    /**
+     * ユーザーをタスクユーザーレスポンスに変換します。
+     *
+     * @param user ユーザー
+     * @return タスクユーザーレスポンスDTO
+     */
     private TaskUserResponse toTaskUserResponse(User user) {
         return TaskUserResponse.builder()
                 .id(user.getId())

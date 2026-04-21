@@ -20,15 +20,33 @@ public class AttachmentController {
 
     private final AttachmentService attachmentService;
 
+    /**
+     * コンストラクタ。
+     *
+     * @param attachmentService 添付ファイルサービス
+     */
     public AttachmentController(AttachmentService attachmentService) {
         this.attachmentService = attachmentService;
     }
 
+    /**
+     * タスクの添付ファイル一覧を取得します。
+     *
+     * @param taskId タスクID
+     * @return 添付ファイルレスポンスリスト
+     */
     @GetMapping("/api/tasks/{taskId}/attachments")
     public ResponseEntity<List<AttachmentResponse>> getAttachments(@PathVariable Long taskId) {
         return ResponseEntity.ok(attachmentService.getAttachments(taskId));
     }
 
+    /**
+     * タスクに添付ファイルをアップロードします。
+     *
+     * @param taskId タスクID
+     * @param file アップロードするファイル
+     * @return アップロードされた添付ファイルレスポンス
+     */
     @PostMapping("/api/tasks/{taskId}/attachments")
     public ResponseEntity<AttachmentResponse> uploadAttachment(
             @PathVariable Long taskId,
@@ -37,6 +55,12 @@ public class AttachmentController {
         return ResponseEntity.status(201).body(attachmentService.uploadAttachment(taskId, file));
     }
 
+    /**
+     * 添付ファイルをダウンロードします。
+     *
+     * @param attachmentId 添付ファイルID
+     * @return ファイルコンテンツとメタデータを含むレスポンス
+     */
     @GetMapping("/api/attachments/{attachmentId}/download")
     public ResponseEntity<ByteArrayResource> downloadAttachment(@PathVariable Long attachmentId) {
         AttachmentService.DownloadResult result = attachmentService.downloadAttachment(attachmentId);
@@ -48,6 +72,12 @@ public class AttachmentController {
                 .body(resource);
     }
 
+    /**
+     * 添付ファイルを削除します。
+     *
+     * @param attachmentId 添付ファイルID
+     * @return ステータスコード 204 No Content
+     */
     @DeleteMapping("/api/attachments/{attachmentId}")
     public ResponseEntity<Void> deleteAttachment(@PathVariable Long attachmentId) {
         attachmentService.deleteAttachment(attachmentId);

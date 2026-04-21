@@ -28,6 +28,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
     private final StructuredLogService structuredLogService;
 
+    /**
+     * JWT認証フィルターを生成する。
+     *
+     * @param jwtUtil JWTユーティリティ
+     * @param userDetailsService ユーザー詳細サービス
+     * @param authenticationEntryPoint 認証エントリーポイント
+     * @param structuredLogService 構造化ログサービス
+     */
     public JwtAuthenticationFilter(JwtUtil jwtUtil,
                                    CustomUserDetailsService userDetailsService,
                                    CustomAuthenticationEntryPoint authenticationEntryPoint,
@@ -38,6 +46,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.structuredLogService = structuredLogService;
     }
 
+    /**
+     * AuthorizationヘッダーのBearerトークンを検証し、認証済みユーザーをSecurityContextに設定する。
+     *
+     * <p>トークンがない場合は認証状態を変更せず後続フィルターへ委譲し、JWT検証に失敗した場合は
+     * 認証エントリーポイントへ委譲して共通の401レスポンスを返す。</p>
+     *
+     * @param request HTTPリクエスト
+     * @param response HTTPレスポンス
+     * @param filterChain フィルターチェーン
+     * @throws ServletException 後続フィルターの処理に失敗した場合
+     * @throws IOException 後続フィルターまたはレスポンス書き込みに失敗した場合
+     */
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
@@ -73,6 +93,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
+        // すでに認証済みの場合は既存のSecurityContextを優先する。
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             CustomUserDetails userDetails =
                     (CustomUserDetails) userDetailsService.loadUserByUsername(username);
@@ -97,6 +118,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    /**
+     * JWT検証失敗をセキュリティログとして記録する。
+     *
+     * @param request HTTPリクエスト
+     * @param errorCode 検証失敗のエラーコード
+     */
     private void logJwtValidationFailure(HttpServletRequest request, ErrorCode errorCode) {
         var fields = structuredLogService.requestFields(
                 request,

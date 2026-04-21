@@ -1,6 +1,9 @@
 import type { FormEvent } from 'react'
 import { AuthShell } from '../components/AuthShell'
 
+/**
+ * 登録画面に表示する入力値、エラー、送信状態、操作。
+ */
 type Props = {
   name: string
   email: string
@@ -18,6 +21,9 @@ type Props = {
   onShowLogin: () => void
 }
 
+/**
+ * ユーザー名、メールアドレス、パスワードで新規アカウントを作成するページ。
+ */
 export function RegisterPage(props: Props) {
   const {
     name,

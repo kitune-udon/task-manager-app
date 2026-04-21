@@ -31,6 +31,14 @@ public class SecurityConfig {
     private final CustomAccessDeniedHandler accessDeniedHandler;
     private final RequestIdFilter requestIdFilter;
 
+    /**
+     * セキュリティ設定を生成する。
+     *
+     * @param jwtAuthenticationFilter JWT認証フィルター
+     * @param authenticationEntryPoint 未認証時のエントリーポイント
+     * @param accessDeniedHandler 権限不足時のハンドラー
+     * @param requestIdFilter リクエストIDフィルター
+     */
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
             CustomAuthenticationEntryPoint authenticationEntryPoint,
@@ -45,10 +53,15 @@ public class SecurityConfig {
 
     /**
      * JWT ベースのステートレス認証を有効化し、保護対象 API を定義する。
+     *
+     * @param http HTTPセキュリティ設定
+     * @return 構築済みのセキュリティフィルターチェーン
+     * @throws Exception セキュリティ設定の構築に失敗した場合
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // JWTで認証するため、CSRFトークンとHTTPセッションは利用しない。
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> {})
                 .sessionManagement(session ->
@@ -58,12 +71,14 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // ブラウザのプリフライト、認証API、ヘルスチェック、エラー応答は認証なしで通す。
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )
+                // リクエストIDは認証失敗レスポンスやログにも載せるため、JWT認証より前に設定する。
                 .addFilterBefore(requestIdFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -72,6 +87,8 @@ public class SecurityConfig {
 
     /**
      * ユーザー登録時やログイン判定で使うパスワードハッシュ化器。
+     *
+     * @return BCryptを利用するパスワードエンコーダー
      */
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -80,6 +97,10 @@ public class SecurityConfig {
 
     /**
      * Spring Security が保持する認証マネージャーを他コンポーネントから参照できるようにする。
+     *
+     * @param config Spring Securityの認証設定
+     * @return 認証マネージャー
+     * @throws Exception 認証マネージャーの取得に失敗した場合
      */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {

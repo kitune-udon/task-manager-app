@@ -8,6 +8,9 @@ import {
   type TaskAttachment,
 } from '../lib/attachmentApi'
 
+/**
+ * 添付ファイル状態hookが必要とする対象タスクと、関連データの再読み込み操作。
+ */
 type Params = {
   selectedTaskId: number | string | null
   onReloadDetail: () => Promise<unknown>
@@ -15,6 +18,9 @@ type Params = {
   onRefreshUnreadCount: () => Promise<void>
 }
 
+/**
+ * 選択中タスクの添付ファイル一覧、アップロード、削除、ダウンロード状態を管理する。
+ */
 export function useTaskAttachmentsState({
   selectedTaskId,
   onReloadDetail,
@@ -27,6 +33,9 @@ export function useTaskAttachmentsState({
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false)
   const [activeAttachmentId, setActiveAttachmentId] = useState<number | null>(null)
 
+  /**
+   * 指定タスクの添付ファイル一覧を取得する。
+   */
   const loadAttachments = useCallback(async (taskId = selectedTaskId) => {
     if (!taskId) {
       setAttachments([])
@@ -55,6 +64,7 @@ export function useTaskAttachmentsState({
     setActiveAttachmentId(null)
 
     if (!selectedTaskId) {
+      // タスク未選択時は前回タスクの添付一覧やエラー表示を残さない。
       setAttachments([])
       setAttachmentErrorMessage('')
       return
@@ -63,6 +73,9 @@ export function useTaskAttachmentsState({
     void loadAttachments(selectedTaskId)
   }, [loadAttachments, selectedTaskId])
 
+  /**
+   * 選択されたファイルを現在のタスクへアップロードする。
+   */
   const uploadSelectedFile = async (file: File | null) => {
     if (!selectedTaskId || !file) {
       return
@@ -73,6 +86,7 @@ export function useTaskAttachmentsState({
 
     try {
       await uploadAttachment(selectedTaskId, file)
+      // 添付追加は詳細情報・履歴・通知未読数にも影響するため、関連データをまとめて更新する。
       await Promise.all([loadAttachments(selectedTaskId), onReloadActivities(), onReloadDetail(), onRefreshUnreadCount()])
     } catch (error) {
       setAttachmentErrorMessage(resolveUserMessage(error))
@@ -81,12 +95,16 @@ export function useTaskAttachmentsState({
     }
   }
 
+  /**
+   * 添付ファイルを削除し、関連データを再取得する。
+   */
   const removeAttachment = async (attachment: TaskAttachment) => {
     setActiveAttachmentId(attachment.id)
     setAttachmentErrorMessage('')
 
     try {
       await deleteAttachment(attachment.id)
+      // 削除後は添付一覧だけでなく、詳細情報と履歴も最新化する。
       await Promise.all([loadAttachments(attachment.taskId), onReloadActivities(), onReloadDetail()])
     } catch (error) {
       setAttachmentErrorMessage(resolveUserMessage(error))
@@ -95,6 +113,9 @@ export function useTaskAttachmentsState({
     }
   }
 
+  /**
+   * 添付ファイルをダウンロードする。
+   */
   const downloadAttachmentFile = async (attachment: TaskAttachment) => {
     setActiveAttachmentId(attachment.id)
     setAttachmentErrorMessage('')

@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react'
 
+/**
+ * 認証後画面で共通利用するヘッダー、サイドバー、本文領域の表示情報と操作。
+ */
 type Props = {
   title: string
   description: string
@@ -14,6 +17,9 @@ type Props = {
   children: ReactNode
 }
 
+/**
+ * タスク関連画面の共通レイアウト、グローバルナビゲーション、ログアウト導線を提供するシェル。
+ */
 export function TaskShell({
   title,
   description,
@@ -27,6 +33,7 @@ export function TaskShell({
   contentBodyClassName,
   children,
 }: Props) {
+  // サイドバーの未読バッジは幅が崩れないよう、3桁以上を99+に丸める。
   const unreadBadgeLabel = unreadCount > 99 ? '99+' : unreadCount > 0 ? unreadCount : null
   const navItems = [
     { label: 'タスク一覧', path: '/tasks' },

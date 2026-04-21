@@ -17,12 +17,19 @@ public class UserService {
 
     private final UserRepository userRepository;
 
+    /**
+     * ユーザーサービスを生成する。
+     *
+     * @param userRepository ユーザーリポジトリ
+     */
     public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
     /**
      * 名前順で安定したユーザー一覧を返し、画面側で扱いやすい DTO に変換する。
+     *
+     * @return ユーザー一覧レスポンス
      */
     @Transactional(readOnly = true)
     public List<UserResponse> getUsers() {
@@ -33,6 +40,9 @@ public class UserService {
 
     /**
      * Entity を API 応答用 DTO に写像する。
+     *
+     * @param user ユーザーエンティティ
+     * @return ユーザーレスポンスDTO
      */
     private UserResponse toUserResponse(User user) {
         return UserResponse.builder()

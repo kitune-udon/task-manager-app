@@ -17,7 +17,18 @@ import java.util.Optional;
  */
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
+    /**
+     * 指定ユーザー宛ての通知を新しい順に取得する。
+     *
+     * <p>{@code unreadOnly} がtrueの場合は未読通知のみを対象にする。</p>
+     *
+     * @param recipientUserId 受信者ユーザーID
+     * @param unreadOnly 未読のみ取得する場合はtrue
+     * @param pageable ページング条件
+     * @return ページングされた通知
+     */
     @EntityGraph(attributePaths = {"activityLog", "activityLog.actorUser", "activityLog.task"})
+    // 一覧レスポンス変換で参照するアクティビティログ関連をまとめて取得する。
     @Query("""
             select n
             from Notification n
@@ -31,12 +42,33 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
             Pageable pageable
     );
 
+    /**
+     * 指定ユーザー宛ての通知をIDで取得する。
+     *
+     * @param id 通知ID
+     * @param recipientUserId 受信者ユーザーID
+     * @return 条件に一致する通知
+     */
     @EntityGraph(attributePaths = {"activityLog", "activityLog.actorUser", "activityLog.task"})
     Optional<Notification> findByIdAndRecipientUserId(Long id, Long recipientUserId);
 
+    /**
+     * 指定ユーザー宛ての未読通知件数を取得する。
+     *
+     * @param recipientUserId 受信者ユーザーID
+     * @return 未読通知件数
+     */
     long countByRecipientUserIdAndIsReadFalse(Long recipientUserId);
 
+    /**
+     * 指定ユーザー宛ての未読通知をまとめて既読にする。
+     *
+     * @param recipientUserId 受信者ユーザーID
+     * @param readAt 既読日時
+     * @return 更新された通知件数
+     */
     @Modifying
+    // 既読済み通知のreadAtを上書きしないよう、未読通知だけを更新する。
     @Query("""
             update Notification n
             set n.isRead = true,

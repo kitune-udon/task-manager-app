@@ -18,15 +18,23 @@ import software.amazon.awssdk.services.s3.S3Client;
 @EnableConfigurationProperties(StorageProperties.class)
 public class StorageConfig {
 
+    /**
+     * 設定されたプロバイダーに応じた添付ストレージ実装を生成する。
+     *
+     * @param properties ストレージ設定
+     * @return 添付ストレージサービス
+     */
     @Bean
     public AttachmentStorageService attachmentStorageService(StorageProperties properties) {
         if (properties.getProvider() == AttachmentStorageType.S3) {
+            // S3利用時だけクライアントを生成し、設定されたリージョンのバケットへ接続する。
             S3Client s3Client = S3Client.builder()
                     .region(Region.of(properties.getS3Region()))
                     .build();
             return new S3AttachmentStorageService(s3Client, properties);
         }
 
+        // providerがLOCALの場合はアプリケーションサーバーのローカルファイルシステムを利用する。
         return new LocalAttachmentStorageService(properties);
     }
 }

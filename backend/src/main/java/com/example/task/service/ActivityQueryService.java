@@ -22,6 +22,13 @@ public class ActivityQueryService {
     private final CurrentUserProvider currentUserProvider;
     private final TaskAuthorizationService taskAuthorizationService;
 
+    /**
+     * コンストラクタ。
+     *
+     * @param activityLogRepository アクティビティログリポジトリ
+     * @param currentUserProvider 現在のユーザー提供者
+     * @param taskAuthorizationService タスク認可サービス
+     */
     public ActivityQueryService(
             ActivityLogRepository activityLogRepository,
             CurrentUserProvider currentUserProvider,
@@ -32,6 +39,16 @@ public class ActivityQueryService {
         this.taskAuthorizationService = taskAuthorizationService;
     }
 
+    /**
+     * 指定されたタスクのアクティビティログ一覧を取得します。ページネーション対応、イベントタイプでのフィルタリング可能。
+     * 現在のユーザーがタスクを閲覧可能であることを確認してから取得します。
+     *
+     * @param taskId タスクID
+     * @param page ページ番号
+     * @param size 1ページあたりの件数
+     * @param eventType イベントタイプ（オプション）
+     * @return ページネーション付きのアクティビティログレスポンスリスト
+     */
     @Transactional(readOnly = true)
     public PageResponse<ActivityLogResponse> getTaskActivities(Long taskId, int page, int size, ActivityEventType eventType) {
         Long currentUserId = currentUserProvider.getCurrentUserId();
@@ -46,6 +63,12 @@ public class ActivityQueryService {
                 .build();
     }
 
+    /**
+     * アクティビティログをレスポンスDTOに変換します。
+     *
+     * @param activityLog アクティビティログエンティティ
+     * @return アクティビティログレスポンスDTO
+     */
     private ActivityLogResponse toResponse(ActivityLog activityLog) {
         return ActivityLogResponse.builder()
                 .id(activityLog.getId())

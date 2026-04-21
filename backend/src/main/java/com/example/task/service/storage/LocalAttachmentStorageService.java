@@ -19,10 +19,24 @@ public class LocalAttachmentStorageService implements AttachmentStorageService {
 
     private final Path basePath;
 
+    /**
+     * ローカル添付ストレージを生成する。
+     *
+     * @param properties ストレージ設定
+     */
     public LocalAttachmentStorageService(StorageProperties properties) {
         this.basePath = Path.of(properties.getLocalBasePath());
     }
 
+    /**
+     * 添付ファイルをローカルファイルシステムへ保存する。
+     *
+     * <p>保存先の親ディレクトリが存在しない場合は作成する。</p>
+     *
+     * @param storageKey 保存先を表すストレージキー
+     * @param file 保存する添付ファイル
+     * @throws StorageException 保存に失敗した場合
+     */
     @Override
     public void store(String storageKey, MultipartFile file) {
         Path target = resolvePath(storageKey);
@@ -37,6 +51,15 @@ public class LocalAttachmentStorageService implements AttachmentStorageService {
         }
     }
 
+    /**
+     * ローカルファイルシステムから添付ファイルを読み込む。
+     *
+     * <p>コンテントタイプを判定できない場合は {@code application/octet-stream} を返す。</p>
+     *
+     * @param storageKey 読み込み対象を表すストレージキー
+     * @return ファイル内容とコンテントタイプを含む保存済み添付ファイル
+     * @throws StorageException 読み込みに失敗した場合
+     */
     @Override
     public StoredAttachment load(String storageKey) {
         Path target = resolvePath(storageKey);
@@ -50,6 +73,14 @@ public class LocalAttachmentStorageService implements AttachmentStorageService {
         }
     }
 
+    /**
+     * ローカルファイルシステムから添付ファイルを削除する。
+     *
+     * <p>対象ファイルが存在しない場合は何もしない。</p>
+     *
+     * @param storageKey 削除対象を表すストレージキー
+     * @throws StorageException 削除に失敗した場合
+     */
     @Override
     public void delete(String storageKey) {
         Path target = resolvePath(storageKey);
@@ -61,6 +92,12 @@ public class LocalAttachmentStorageService implements AttachmentStorageService {
         }
     }
 
+    /**
+     * ストレージキーからローカルファイルパスを解決する。
+     *
+     * @param storageKey ストレージキー
+     * @return ベースパス配下のファイルパス
+     */
     private Path resolvePath(String storageKey) {
         return basePath.resolve(storageKey);
     }

@@ -9,6 +9,9 @@ import { NotificationPage } from '../pages/NotificationPage'
 
 type TaskOption<T extends string> = Array<{ label: string; value: T }>
 
+/**
+ * 認証後レイアウトで共有するルーティング、ユーザー、タスク、通知の状態と操作。
+ */
 type Props = {
   route: ResolvedRoute
   selectedTaskId: string | null
@@ -26,6 +29,9 @@ type Props = {
   editablePriorityOptions: TaskOption<TaskPriority>
 }
 
+/**
+ * 認証済みユーザー向けに、現在のルートへ対応するページへ状態とイベントハンドラーを配線する。
+ */
 export function AuthenticatedAppView({
   route,
   selectedTaskId,
@@ -44,6 +50,7 @@ export function AuthenticatedAppView({
 }: Props) {
   const { list, detail, mutation, assignableUsers, actions } = taskState
 
+  // 画面ごとの表示責務は各Pageへ寄せ、このコンポーネントではルートに応じたprops配線に集中する。
   switch (route.page) {
     case 'create':
       return (

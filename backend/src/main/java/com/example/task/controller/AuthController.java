@@ -19,12 +19,20 @@ public class AuthController {
 
     private final AuthService authService;
 
+    /**
+     * 認証APIコントローラーを生成する。
+     *
+     * @param authService 認証サービス
+     */
     public AuthController(AuthService authService) {
         this.authService = authService;
     }
 
     /**
      * 新規ユーザーを登録し、作成結果を返す。
+     *
+     * @param request ユーザー登録リクエスト
+     * @return 登録結果。作成成功時はHTTP 201を返す
      */
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
@@ -33,6 +41,9 @@ public class AuthController {
 
     /**
      * 認証に成功したユーザーへ JWT を払い出す。
+     *
+     * @param request ログインリクエスト
+     * @return JWTを含むログインレスポンス
      */
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {

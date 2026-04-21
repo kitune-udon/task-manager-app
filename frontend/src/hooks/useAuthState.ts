@@ -28,12 +28,21 @@ export type AuthMode = 'login' | 'register'
 
 const EMAIL_PATTERN = /^\S+@\S+\.\S+$/
 
+/**
+ * 認証状態hookが画面遷移を行うために受け取る操作。
+ */
 type Params = {
   go: (path: string, replace?: boolean) => void
   onUnauthorized?: () => void
 }
 
+/**
+ * ログイン/登録フォーム、認証トークン、認証ルート遷移をまとめて管理する。
+ */
 export function useAuthState({ go, onUnauthorized }: Params) {
+  /**
+   * URLから未認証画面の表示モードを解決する。
+   */
   const resolveAuthMode = (pathname: string): AuthMode => (pathname === '/signup' ? 'register' : 'login')
 
   const [mode, setMode] = useState<AuthMode>(() => resolveAuthMode(window.location.pathname))
@@ -56,11 +65,17 @@ export function useAuthState({ go, onUnauthorized }: Params) {
 
   const isLoggedIn = useMemo(() => Boolean(token), [token])
 
+  /**
+   * 画面上部に表示する認証系メッセージをクリアする。
+   */
   const resetMessages = () => {
     setErrorMessage('')
     setSuccessMessage('')
   }
 
+  /**
+   * ログインフォームの指定フィールドのエラーをクリアする。
+   */
   const clearLoginFieldError = (field: string) => {
     setLoginFieldErrors((current) => {
       if (!current[field]) {
@@ -73,6 +88,9 @@ export function useAuthState({ go, onUnauthorized }: Params) {
     })
   }
 
+  /**
+   * 登録フォームの指定フィールドのエラーをクリアする。
+   */
   const clearRegisterFieldError = (field: string) => {
     setRegisterFieldErrors((current) => {
       if (!current[field]) {
@@ -85,6 +103,9 @@ export function useAuthState({ go, onUnauthorized }: Params) {
     })
   }
 
+  /**
+   * ログイン画面へ切り替える。
+   */
   const showLogin = () => {
     resetMessages()
     setLoginFieldErrors({})
@@ -95,6 +116,9 @@ export function useAuthState({ go, onUnauthorized }: Params) {
     }
   }
 
+  /**
+   * ユーザー登録画面へ切り替える。
+   */
   const showRegister = () => {
     resetMessages()
     setLoginFieldErrors({})
@@ -105,6 +129,9 @@ export function useAuthState({ go, onUnauthorized }: Params) {
     }
   }
 
+  /**
+   * ログインフォームをクライアント側で検証する。
+   */
   const validateLoginForm = (): FieldErrors => {
     const next: FieldErrors = {}
     const trimmedLoginEmail = loginEmail.trim()
@@ -122,6 +149,9 @@ export function useAuthState({ go, onUnauthorized }: Params) {
     return next
   }
 
+  /**
+   * 登録フォームをクライアント側で検証する。
+   */
   const validateRegisterForm = (): FieldErrors => {
     const next: FieldErrors = {}
     const trimmedRegisterEmail = registerEmail.trim()
@@ -149,6 +179,9 @@ export function useAuthState({ go, onUnauthorized }: Params) {
     return next
   }
 
+  /**
+   * ログインAPIを呼び出し、成功時は認証情報を保存して保護ページへ遷移する。
+   */
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     resetMessages()
@@ -185,6 +218,7 @@ export function useAuthState({ go, onUnauthorized }: Params) {
       setCurrentUserLabel(resolvedUserName)
       setLoginFieldErrors({})
       const redirectPath = consumePostLoginRedirectPath()
+      // 認証切れなどで保存していた遷移先があれば、ログイン後に元の保護ページへ戻す。
       go(redirectPath || '/tasks', true)
     } catch (error) {
       const apiFieldErrors = extractFieldErrorsFromApiError(error)
@@ -197,6 +231,9 @@ export function useAuthState({ go, onUnauthorized }: Params) {
     }
   }
 
+  /**
+   * 登録APIを呼び出し、成功時はログイン画面へ戻して登録済みメールアドレスを引き継ぐ。
+   */
   const handleRegister = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     resetMessages()
@@ -241,6 +278,9 @@ export function useAuthState({ go, onUnauthorized }: Params) {
     }
   }
 
+  /**
+   * 保存済み認証情報と画面上の認証状態を破棄し、ログイン画面へ戻す。
+   */
   const handleLogout = () => {
     clearAuthToken()
     clearUserId()
@@ -257,9 +297,13 @@ export function useAuthState({ go, onUnauthorized }: Params) {
   }
 
   useEffect(() => {
+    /**
+     * APIクライアントが通知する401イベントを受け取り、再ログイン導線へ切り替える。
+     */
     const handleUnauthorized = () => {
       const currentPath = window.location.pathname
       if (isProtectedPath(currentPath)) {
+        // 再ログイン後に元のページへ戻せるよう、保護ページだけ退避する。
         savePostLoginRedirectPath(currentPath)
       }
       clearUserDisplayName()
@@ -284,10 +328,14 @@ export function useAuthState({ go, onUnauthorized }: Params) {
   }, [go, onUnauthorized])
 
   useEffect(() => {
+    /**
+     * 現在の認証状態とURLを同期し、保護ページへの未認証アクセスをログイン画面へ寄せる。
+     */
     const syncAuthRoute = () => {
       const currentPath = window.location.pathname
 
       if (!isLoggedIn && isProtectedPath(currentPath)) {
+        // 直接URL入力や戻る操作で保護ページに来た場合も、ログイン後の戻り先として保存する。
         savePostLoginRedirectPath(currentPath)
         setMode('login')
         if (currentPath !== '/login') {
@@ -303,6 +351,7 @@ export function useAuthState({ go, onUnauthorized }: Params) {
 
       if (currentPath === '/login' || currentPath === '/signup' || currentPath === '/') {
         const redirectPath = consumePostLoginRedirectPath()
+        // ログイン済みユーザーには認証画面を見せず、作業画面へ戻す。
         go(redirectPath || '/tasks', true)
       }
     }

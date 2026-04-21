@@ -4,6 +4,9 @@ import type { AssigneeOption, TaskFormBindings } from '../hooks/taskStateShared'
 import { TaskShell } from '../components/TaskShell'
 import { TaskForm } from '../components/TaskForm'
 
+/**
+ * タスク作成画面に表示するフォーム状態、選択肢、メッセージ、画面操作。
+ */
 type Props = {
   activePath: string
   currentUserLabel: string
@@ -23,6 +26,9 @@ type Props = {
   assigneeOptionsError: string
 }
 
+/**
+ * 共通タスクフォームを使って新規タスクを作成するページ。
+ */
 export function TaskCreatePage(props: Props) {
   return (
     <TaskShell

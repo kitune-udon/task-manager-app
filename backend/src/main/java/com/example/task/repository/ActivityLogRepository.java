@@ -14,7 +14,18 @@ import org.springframework.data.repository.query.Param;
  */
 public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> {
 
+    /**
+     * 指定されたタスクのアクティビティログを新しい順に取得する。
+     *
+     * <p>{@code eventType} がnullの場合はイベント種別で絞り込まず、すべてのログを対象にする。</p>
+     *
+     * @param taskId タスクID
+     * @param eventType 絞り込み対象のイベント種別（任意）
+     * @param pageable ページング条件
+     * @return ページングされたアクティビティログ
+     */
     @EntityGraph(attributePaths = {"actorUser"})
+    // actorUserを同時に取得し、レスポンス変換時の追加SELECTを避ける。
     @Query("""
             select a
             from ActivityLog a

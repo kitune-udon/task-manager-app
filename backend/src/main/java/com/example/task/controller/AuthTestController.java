@@ -16,12 +16,19 @@ public class AuthTestController {
 
     private final CurrentUserProvider currentUserProvider;
 
+    /**
+     * 認証テスト用コントローラーを生成する。
+     *
+     * @param currentUserProvider 現在のユーザー提供者
+     */
     public AuthTestController(CurrentUserProvider currentUserProvider) {
         this.currentUserProvider = currentUserProvider;
     }
 
     /**
      * 現在の認証コンテキストから取得したユーザー情報をそのまま返す。
+     *
+     * @return 認証済みユーザーIDとメールアドレス
      */
     @GetMapping("/me")
     public Map<String, Object> me() {

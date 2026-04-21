@@ -26,11 +26,26 @@ public class S3AttachmentStorageService implements AttachmentStorageService {
     private final S3Client s3Client;
     private final String bucket;
 
+    /**
+     * S3添付ストレージを生成する。
+     *
+     * @param s3Client S3クライアント
+     * @param properties ストレージ設定
+     */
     public S3AttachmentStorageService(S3Client s3Client, StorageProperties properties) {
         this.s3Client = s3Client;
         this.bucket = properties.getS3Bucket();
     }
 
+    /**
+     * 添付ファイルをS3へ保存する。
+     *
+     * <p>ストレージキーをS3オブジェクトキーとして使用し、アップロードされたファイルのコンテントタイプを設定する。</p>
+     *
+     * @param storageKey 保存先を表すストレージキー
+     * @param file 保存する添付ファイル
+     * @throws StorageException ファイル読み取りまたはS3への保存に失敗した場合
+     */
     @Override
     public void store(String storageKey, MultipartFile file) {
         try {
@@ -45,6 +60,15 @@ public class S3AttachmentStorageService implements AttachmentStorageService {
         }
     }
 
+    /**
+     * S3から添付ファイルを読み込む。
+     *
+     * <p>S3オブジェクトのコンテントタイプを利用し、取得できない場合は {@code application/octet-stream} を返す。</p>
+     *
+     * @param storageKey 読み込み対象を表すストレージキー
+     * @return ファイル内容とコンテントタイプを含む保存済み添付ファイル
+     * @throws StorageException 対象オブジェクトが存在しない、または読み込みに失敗した場合
+     */
     @Override
     public StoredAttachment load(String storageKey) {
         try {
@@ -63,6 +87,12 @@ public class S3AttachmentStorageService implements AttachmentStorageService {
         }
     }
 
+    /**
+     * S3から添付ファイルを削除する。
+     *
+     * @param storageKey 削除対象を表すストレージキー
+     * @throws StorageException S3からの削除に失敗した場合
+     */
     @Override
     public void delete(String storageKey) {
         try {

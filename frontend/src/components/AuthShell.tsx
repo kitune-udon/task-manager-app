@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react'
 
+/**
+ * ログイン/登録画面で共通利用する見出し、補足文、本文スロット。
+ */
 type Props = {
   pageTitle?: string
   headerNote?: string
@@ -7,6 +10,9 @@ type Props = {
   children: ReactNode
 }
 
+/**
+ * 未認証画面のブランドヘッダーとカード状レイアウトを提供する共通シェル。
+ */
 export function AuthShell({ pageTitle, headerNote, layoutLabel, children }: Props) {
   return (
     <main className="auth-screen">

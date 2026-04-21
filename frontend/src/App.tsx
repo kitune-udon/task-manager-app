@@ -12,6 +12,9 @@ import { useTaskState } from './hooks/useTaskState'
 import { AuthenticatedAppView } from './app_views/AuthenticatedAppView'
 import { UnauthenticatedAppView } from './app_views/UnauthenticatedAppView'
 
+/**
+ * 認証、ルーティング、通知、タスクの状態を束ねて、ログイン状態に応じた画面を切り替えるルートコンポーネント。
+ */
 function App() {
   const navigation = useRouteState()
 
@@ -34,6 +37,9 @@ function App() {
     refreshUnreadCount: notifications.actions.loadUnreadCount,
   })
 
+  /**
+   * ログアウト時に認証状態だけでなく、ログインユーザーに紐づく画面状態もまとめて破棄する。
+   */
   const handleLogout = () => {
     tasks.actions.clearTaskStateOnLogout()
     notifications.actions.clearNotificationState()

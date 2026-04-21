@@ -15,6 +15,9 @@ import {
 } from '../utils/activityDisplay'
 import { formatDate, formatDateTime } from '../utils/format'
 
+/**
+ * タスク詳細画面に表示する詳細情報、編集フォーム、コメント/履歴/添付の操作。
+ */
 type Props = {
   activePath: string
   currentUserLabel: string
@@ -50,6 +53,9 @@ type Props = {
 
 const DETAIL_FORM_ID = 'task-detail-edit-form'
 
+/**
+ * バイト数を画面表示用のファイルサイズ文字列へ変換する。
+ */
 function formatFileSize(value?: number | null) {
   if (!value && value !== 0) {
     return '-'
@@ -66,6 +72,9 @@ function formatFileSize(value?: number | null) {
   return `${(value / (1024 * 1024)).toFixed(1)} MB`
 }
 
+/**
+ * 現在のユーザーが、作成者/投稿者本人だけに許可される操作を実行できるか判定する。
+ */
 function canManageOwnResource(currentUserId: number | null, ownerId?: number | string | null) {
   if (currentUserId === null || ownerId === undefined || ownerId === null) {
     return false
@@ -74,6 +83,9 @@ function canManageOwnResource(currentUserId: number | null, ownerId?: number | s
   return Number(ownerId) === currentUserId
 }
 
+/**
+ * コメント投稿者などを表す共通ユーザーアイコン。
+ */
 function UserOutlineIcon() {
   return (
     <svg fill="none" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
@@ -95,6 +107,9 @@ function UserOutlineIcon() {
   )
 }
 
+/**
+ * タスク詳細、編集フォーム、添付、コメント、履歴をまとめて表示するページ。
+ */
 export function TaskDetailPage({
   activePath,
   currentUserLabel,
@@ -147,19 +162,29 @@ export function TaskDetailPage({
 
   useEffect(() => {
     if (fileInputRef.current) {
+      // 別タスクへ移動したときに、前タスクで選択したファイルを残さない。
       fileInputRef.current.value = ''
     }
   }, [selectedTaskId])
 
+  /**
+   * コメント投稿フォームの送信をコメント状態hookへ委譲する。
+   */
   const handleCreateComment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     await commentsState.submitComment()
   }
 
+  /**
+   * 編集中コメントを保存する。
+   */
   const handleSaveEditedComment = async (comment: TaskComment) => {
     await commentsState.saveEditedComment(comment)
   }
 
+  /**
+   * 確認後にコメントを削除する。
+   */
   const handleDeleteComment = async (comment: TaskComment) => {
     if (!window.confirm('このコメントを削除しますか？')) {
       return
@@ -168,16 +193,26 @@ export function TaskDetailPage({
     await commentsState.removeComment(comment)
   }
 
+  /**
+   * ファイル選択後、即座に添付アップロードを開始する。
+   */
   const handleAttachmentSelectionChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
     await attachmentsState.uploadSelectedFile(file)
+    // 同じファイルを続けて選び直してもchangeイベントが発火するようにする。
     event.target.value = ''
   }
 
+  /**
+   * 非表示のファイル入力を開く。
+   */
   const handleAttachmentButtonClick = () => {
     fileInputRef.current?.click()
   }
 
+  /**
+   * 確認後に添付ファイルを削除する。
+   */
   const handleDeleteAttachment = async (attachment: TaskAttachment) => {
     if (!window.confirm('この添付ファイルを削除しますか？')) {
       return
@@ -186,6 +221,9 @@ export function TaskDetailPage({
     await attachmentsState.removeAttachment(attachment)
   }
 
+  /**
+   * 添付ファイルをダウンロードする。
+   */
   const handleDownloadAttachment = async (attachment: TaskAttachment) => {
     await attachmentsState.downloadAttachmentFile(attachment)
   }
@@ -235,6 +273,7 @@ export function TaskDetailPage({
       contentBodyClassName="task-detail-content-body"
       actions={detailActions}
     >
+      {/* サイドバーの保存ボタンから送信できるよう、編集時は画面上部に共有formを置く。 */}
       {isEditing ? <form id={DETAIL_FORM_ID} onSubmit={onEditSubmit} /> : null}
       {detailErrorMessage ? <div className="status-box error-box">{detailErrorMessage}</div> : null}
       {successMessage ? <div className="status-box success-box">{successMessage}</div> : null}
@@ -565,6 +604,7 @@ export function TaskDetailPage({
                         {activitiesState.activities.map((activity) => {
                           const taskUpdateChanges = extractTaskUpdateChanges(activity.detailJson)
                           const attachmentFileName = extractAttachmentFileName(activity.detailJson)
+                          // 履歴のdetailJsonから、変更差分や対象ファイル名だけを表示用に取り出す。
                           const showTaskUpdateDetails = activity.eventType === 'TASK_UPDATED' && taskUpdateChanges.length > 0
                           const showAttachmentDetails =
                             (activity.eventType === 'ATTACHMENT_UPLOADED' || activity.eventType === 'ATTACHMENT_DELETED') &&

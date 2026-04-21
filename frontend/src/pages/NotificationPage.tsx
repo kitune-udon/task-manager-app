@@ -4,6 +4,9 @@ import { TaskShell } from '../components/TaskShell'
 import { buildNotificationDetailLines, formatActivityEventTypeLabel } from '../utils/activityDisplay'
 import { formatDateTime } from '../utils/format'
 
+/**
+ * 通知一覧画面に表示する通知データ、ページング状態、既読操作。
+ */
 type Props = {
   activePath: string
   currentUserLabel: string
@@ -28,6 +31,9 @@ type Props = {
   onMarkAllRead: () => void
 }
 
+/**
+ * 通知一覧、未読フィルタ、ページング、既読化、関連タスク遷移を表示するページ。
+ */
 export function NotificationPage({
   activePath,
   currentUserLabel,
@@ -109,6 +115,7 @@ export function NotificationPage({
                       const isOpening = isActive && activeNotificationAction === 'open'
                       const isMarkingRead = isActive && activeNotificationAction === 'mark-read'
                       const openLabel = `${notification.relatedTaskTitle ?? '関連タスク'}の詳細を開く`
+                      // 変更内容や添付ファイル名など、イベント種別ごとの補足情報を行内に展開する。
                       const detailLines = buildNotificationDetailLines(notification.eventType, notification.detailJson)
 
                       return (
@@ -204,6 +211,7 @@ export function NotificationPage({
                                 className="table-action-button"
                                 disabled={notification.isRead || isActive}
                                 onClick={(event: MouseEvent<HTMLButtonElement>) => {
+                                  // 行全体の「関連タスクを開く」操作とは独立して既読化する。
                                   event.stopPropagation()
                                   void onMarkAsRead(notification)
                                 }}
