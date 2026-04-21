@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   resolveUserMessage,
   extractFieldErrorsFromApiError,
@@ -62,6 +62,7 @@ export function useAuthState({ go, onUnauthorized }: Params) {
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const isLoggingOutRef = useRef(false)
 
   const isLoggedIn = useMemo(() => Boolean(token), [token])
 
@@ -282,6 +283,7 @@ export function useAuthState({ go, onUnauthorized }: Params) {
    * 保存済み認証情報と画面上の認証状態を破棄し、ログイン画面へ戻す。
    */
   const handleLogout = () => {
+    isLoggingOutRef.current = true
     clearAuthToken()
     clearUserId()
     clearUserDisplayName()
@@ -333,6 +335,16 @@ export function useAuthState({ go, onUnauthorized }: Params) {
      */
     const syncAuthRoute = () => {
       const currentPath = window.location.pathname
+
+      if (isLoggingOutRef.current) {
+        setMode('login')
+        if (currentPath !== '/login') {
+          go('/login', true)
+          return
+        }
+        isLoggingOutRef.current = false
+        return
+      }
 
       if (!isLoggedIn && isProtectedPath(currentPath)) {
         // 直接URL入力や戻る操作で保護ページに来た場合も、ログイン後の戻り先として保存する。
