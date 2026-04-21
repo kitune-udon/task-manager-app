@@ -1,4 +1,0 @@
-{
-  "Comment": "Rewrite non-API SPA routes to /index.html",
-  "Runtime": "cloudfront-js-2.0"
-}
