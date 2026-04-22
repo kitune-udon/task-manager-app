@@ -238,8 +238,8 @@ export function useNotificationState({ isLoggedIn, go, routeKey }: Params) {
       await loadUnreadCount()
 
       if (!nextNotification.relatedTaskId) {
-        setNotificationErrorMessage('関連タスクを特定できませんでした。')
         await loadNotifications(currentPage, unreadOnly)
+        setNotificationErrorMessage('関連タスクを特定できませんでした。')
         return
       }
 
@@ -247,8 +247,9 @@ export function useNotificationState({ isLoggedIn, go, routeKey }: Params) {
       // 遷移前に関連タスクを取得し、削除済みや権限不足をこの画面でメッセージ化する。
       go(`/tasks/${nextNotification.relatedTaskId}`)
     } catch (error) {
-      setNotificationErrorMessage(mapNotificationOpenError(error))
+      const message = mapNotificationOpenError(error)
       await Promise.all([loadUnreadCount(), loadNotifications(currentPage, unreadOnly)])
+      setNotificationErrorMessage(message)
     } finally {
       setActiveNotificationId(null)
       setActiveNotificationAction(null)

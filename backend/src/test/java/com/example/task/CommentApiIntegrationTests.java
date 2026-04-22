@@ -2,13 +2,17 @@ package com.example.task;
 
 import com.example.task.entity.Priority;
 import com.example.task.entity.Task;
+import com.example.task.entity.TaskComment;
 import com.example.task.entity.TaskStatus;
 import com.example.task.entity.User;
+import com.example.task.service.ActivityNotificationService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -17,6 +21,7 @@ import java.util.Map;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -30,6 +35,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 6. コメント機能のAPI観点を検証する。
  */
 class CommentApiIntegrationTests extends ApiIntegrationTestBase {
+
+    @Autowired
+    private ActivityNotificationService activityNotificationService;
 
     @Test
     @DisplayName("CMT-L-01: 対象タスクのコメント一覧を取得できる")
@@ -139,6 +147,19 @@ class CommentApiIntegrationTests extends ApiIntegrationTestBase {
                         .header("Authorization", bearer(token)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("ERR-TASK-004"));
+    }
+
+    @Test
+    @DisplayName("CMT-L-06: 参照不可タスクのコメント一覧は取得できない")
+    void commentListRejectsForbiddenTask() throws Exception {
+        CommentContext context = newCommentContext("Comment list auth");
+        User outsider = createUser("Outsider", "outsider@example.com", "password123");
+        String outsiderToken = loginAndGetToken(outsider.getEmail(), "password123");
+
+        mockMvc.perform(get("/api/tasks/{taskId}/comments", context.task().getId())
+                        .header("Authorization", bearer(outsiderToken)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("ERR-AUTH-005"));
     }
 
     @Test
@@ -274,6 +295,28 @@ class CommentApiIntegrationTests extends ApiIntegrationTestBase {
                 "select count(*) from " + table("notifications") + " where recipient_user_id = ?",
                 Long.class,
                 context.assignee().getId()
+        ));
+    }
+
+    @Test
+    @DisplayName("CMT-C-10: 同一ユーザーにコメント通知が重複生成されない")
+    @Transactional
+    void commentNotificationsDeduplicateSameRecipient() {
+        User recipient = createUser("Recipient", "recipient@example.com", "password123");
+        User actor = createUser("Actor", "actor@example.com", "password123");
+        Task task = createTask("Duplicate recipient task", recipient, recipient, TaskStatus.TODO, Priority.HIGH);
+        TaskComment comment = taskCommentRepository.save(TaskComment.builder()
+                .task(task)
+                .content("deduplicate recipient")
+                .createdBy(actor)
+                .build());
+
+        activityNotificationService.recordCommentCreated(actor, comment);
+
+        assertEquals(1L, jdbcTemplate.queryForObject(
+                "select count(*) from " + table("notifications") + " where recipient_user_id = ?",
+                Long.class,
+                recipient.getId()
         ));
     }
 
@@ -524,6 +567,27 @@ class CommentApiIntegrationTests extends ApiIntegrationTestBase {
 
         JsonNode activities = objectMapper.readTree(result.getResponse().getContentAsString()).path("content");
         assertEquals(commentId, findActivityByEventType(activities, "COMMENT_DELETED").path("detailJson").path("commentId").asLong());
+    }
+
+    @Test
+    @DisplayName("CMT-D-08: 削除済みコメント本文はコメント一覧・履歴一覧に表示されない")
+    void deletedCommentContentIsHiddenFromCommentsAndHistory() throws Exception {
+        CommentContext context = newCommentContext("Comment deleted content");
+        String deletedContent = "deleted-secret-comment-body";
+        JsonNode created = postComment(context.creatorToken(), context.task().getId(), deletedContent);
+
+        deleteComment(context.creatorToken(), created.path("id").asLong());
+
+        mockMvc.perform(get("/api/tasks/{taskId}/comments", context.task().getId())
+                        .header("Authorization", bearer(context.creatorToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(0)));
+
+        MvcResult activityResult = mockMvc.perform(get("/api/tasks/{taskId}/activities", context.task().getId())
+                        .header("Authorization", bearer(context.creatorToken())))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertFalse(activityResult.getResponse().getContentAsString().contains(deletedContent));
     }
 
     private CommentContext newCommentContext(String title) throws Exception {

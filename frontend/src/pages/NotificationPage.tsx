@@ -73,9 +73,11 @@ export function NotificationPage({
           <button className="secondary-button" onClick={onReload} type="button">
             再読込
           </button>
-          <button className="primary-button" disabled={isMarkingAllRead || unreadCount === 0} onClick={onMarkAllRead} type="button">
-            {isMarkingAllRead ? '既読化中...' : '一括既読'}
-          </button>
+          {unreadCount > 0 || isMarkingAllRead ? (
+            <button className="primary-button" disabled={isMarkingAllRead} onClick={onMarkAllRead} type="button">
+              {isMarkingAllRead ? '既読化中...' : '一括既読'}
+            </button>
+          ) : null}
         </>
       }
     >
