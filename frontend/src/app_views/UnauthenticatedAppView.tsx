@@ -3,6 +3,9 @@ import type { AuthMode } from '../hooks/useAuthState'
 import { LoginPage } from '../pages/LoginPage'
 import { RegisterPage } from '../pages/RegisterPage'
 
+/**
+ * 未認証画面で共有する認証モード、メッセージ、ログイン/登録フォームの状態と操作。
+ */
 type Props = {
   mode: AuthMode
   errorMessage: string
@@ -32,6 +35,9 @@ type Props = {
   }
 }
 
+/**
+ * 未認証ユーザー向けに、現在の認証モードへ対応するログインまたは登録ページを表示する。
+ */
 export function UnauthenticatedAppView({
   mode,
   errorMessage,
@@ -40,6 +46,7 @@ export function UnauthenticatedAppView({
   loginForm,
   registerForm,
 }: Props) {
+  // フォーム状態はuseAuthState側で保持し、このコンポーネントでは表示先ページへの受け渡しに集中する。
   if (mode === 'login') {
     return (
       <LoginPage

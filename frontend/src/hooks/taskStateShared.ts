@@ -3,6 +3,9 @@ import type { FieldErrors } from '../lib/apiError'
 import type { TaskItem, TaskPriority, TaskStatus } from '../lib/taskApi'
 import { toDateInputValue } from '../utils/format'
 
+/**
+ * タスク作成・編集フォームで保持する入力値。
+ */
 export type TaskFormState = {
   title: string
   description: string
@@ -12,6 +15,9 @@ export type TaskFormState = {
   assignedUserId: string
 }
 
+/**
+ * フォーム入力値に、フィールドエラーと各入力の変更ハンドラーを加えたUI向けバインディング。
+ */
 export type TaskFormBindings = TaskFormState & {
   fieldErrors: FieldErrors
   onTitleChange: (value: string) => void
@@ -22,11 +28,17 @@ export type TaskFormBindings = TaskFormState & {
   onAssignedUserIdChange: (value: string) => void
 }
 
+/**
+ * 担当者selectに渡す表示名と値のペア。
+ */
 export type AssigneeOption = {
   label: string
   value: string
 }
 
+/**
+ * 新規タスク作成時に利用するフォーム初期値。
+ */
 export const defaultTaskForm: TaskFormState = {
   title: '',
   description: '',
@@ -36,6 +48,11 @@ export const defaultTaskForm: TaskFormState = {
   assignedUserId: '',
 }
 
+/**
+ * 指定フィールドの入力エラーを削除する。
+ *
+ * <p>ユーザーが再入力したフィールドだけエラー表示を消し、他フィールドのエラーは残す。</p>
+ */
 function clearFieldError(setFieldErrors: Dispatch<SetStateAction<FieldErrors>>, field: string) {
   setFieldErrors((current) => {
     if (!current[field]) {
@@ -48,6 +65,9 @@ function clearFieldError(setFieldErrors: Dispatch<SetStateAction<FieldErrors>>, 
   })
 }
 
+/**
+ * フォーム状態とsetterから、TaskFormへ渡す入力値と変更ハンドラーを生成する。
+ */
 export function toTaskFormBindings(
   form: TaskFormState,
   fieldErrors: FieldErrors,
@@ -84,6 +104,9 @@ export function toTaskFormBindings(
   }
 }
 
+/**
+ * APIから取得したタスクを編集フォームへ流し込める文字列ベースの状態へ変換する。
+ */
 export function toTaskFormState(task: TaskItem): TaskFormState {
   return {
     title: task.title ?? '',

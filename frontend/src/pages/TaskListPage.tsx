@@ -2,9 +2,13 @@ import type { TaskItem } from '../lib/taskApi'
 import { TaskShell } from '../components/TaskShell'
 import { formatDate } from '../utils/format'
 
+/**
+ * タスク一覧画面に表示する一覧データ、フィルタ状態、画面操作。
+ */
 type Props = {
   activePath: string
   currentUserLabel: string
+  unreadCount: number
   onNavigate: (path: string) => void
   onLogout: () => void
   onShowCreate: () => void
@@ -23,6 +27,9 @@ type Props = {
   priorityOptions: Array<{ label: string; value: string }>
 }
 
+/**
+ * タスク一覧、フィルタ、概要件数、詳細画面への導線を表示するページ。
+ */
 export function TaskListPage(props: Props) {
   return (
     <TaskShell
@@ -32,6 +39,7 @@ export function TaskListPage(props: Props) {
       onNavigate={props.onNavigate}
       onLogout={props.onLogout}
       currentUserLabel={props.currentUserLabel}
+      unreadCount={props.unreadCount}
       actions={
         <>
           <button className="primary-button" onClick={props.onShowCreate} type="button">タスク作成</button>
@@ -42,6 +50,7 @@ export function TaskListPage(props: Props) {
       {props.taskErrorMessage ? <div className="status-box error-box">{props.taskErrorMessage}</div> : null}
       {props.successMessage ? <div className="status-box success-box">{props.successMessage}</div> : null}
 
+      {/* 取得件数はAPIから受け取った総数、表示件数は画面フィルタ適用後の件数。 */}
       <div className="summary-row">
         <div className="summary-card"><p className="summary-label">取得件数</p><strong>{props.tasks.length}</strong></div>
         <div className="summary-card"><p className="summary-label">表示件数</p><strong>{props.filteredTasks.length}</strong></div>

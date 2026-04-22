@@ -1,10 +1,16 @@
 import axios from 'axios'
 
+/**
+ * APIエラーレスポンスのフィールド単位詳細。
+ */
 export type ApiErrorDetail = {
   field?: string
   message?: string
 }
 
+/**
+ * バックエンドの共通エラーレスポンスをフロントで扱うための型。
+ */
 export type ApiErrorPayload = {
   status?: number
   errorCode?: string
@@ -13,11 +19,17 @@ export type ApiErrorPayload = {
   details?: ApiErrorDetail[]
 }
 
+/**
+ * フォームフィールド名をキーにした入力エラーメッセージ。
+ */
 export type FieldErrors = Record<string, string>
 
 const NOT_FOUND_CODES = new Set(['ERR-TASK-004', 'ERR-USR-002'])
 const FORBIDDEN_CODES = new Set(['ERR-AUTH-005', 'ERR-TASK-005', 'ERR-TASK-006'])
 
+/**
+ * axiosエラーからAPI共通エラーペイロードを取り出す。
+ */
 function parseApiError(error: unknown): ApiErrorPayload | undefined {
   if (!axios.isAxiosError(error)) {
     return undefined
@@ -31,15 +43,24 @@ function parseApiError(error: unknown): ApiErrorPayload | undefined {
   return responseData as ApiErrorPayload
 }
 
+/**
+ * APIエラーから表示用メッセージを抽出する。
+ */
 export function extractApiErrorMessage(error: unknown): string {
   const apiError = parseApiError(error)
   return apiError?.message ?? apiError?.error ?? 'リクエストに失敗しました。'
 }
 
+/**
+ * APIエラーからエラーコードを抽出する。
+ */
 export function extractApiErrorCode(error: unknown): string {
   return parseApiError(error)?.errorCode ?? ''
 }
 
+/**
+ * APIエラー詳細をフォームフィールド別のエラーへ変換する。
+ */
 export function extractFieldErrorsFromApiError(error: unknown): FieldErrors {
   const details = parseApiError(error)?.details
 
@@ -52,6 +73,7 @@ export function extractFieldErrorsFromApiError(error: unknown): FieldErrors {
     const message = detail.message?.trim()
 
     if (field && message && !acc[field]) {
+      // 同じフィールドに複数エラーがある場合は、先頭のメッセージを表示する。
       acc[field] = message
     }
 
@@ -59,11 +81,17 @@ export function extractFieldErrorsFromApiError(error: unknown): FieldErrors {
   }, {})
 }
 
+/**
+ * フィールドエラーが1件以上あるかどうかを判定する。
+ */
 export function hasFieldErrors(fieldErrors: FieldErrors): boolean {
   return Object.keys(fieldErrors).length > 0
 }
 
 
+/**
+ * APIエラーや通常のErrorを、画面に出してよいユーザー向けメッセージへ変換する。
+ */
 export function resolveUserMessage(error: unknown): string {
   const apiError = parseApiError(error)
   const code = apiError?.errorCode ?? ''
@@ -71,6 +99,7 @@ export function resolveUserMessage(error: unknown): string {
   const rawMessage = apiError?.message ?? apiError?.error ?? ''
 
   if (code.startsWith('ERR-SYS-') || status === 500 || rawMessage === 'Internal Server Error') {
+    // サーバー内部事情を出さないよう、システムエラーは定型文へ丸める。
     return 'システムエラーが発生しました。しばらくしてから再度お試しください。'
   }
 
@@ -79,6 +108,7 @@ export function resolveUserMessage(error: unknown): string {
   }
 
   if (FORBIDDEN_CODES.has(code) || status === 403) {
+    // 権限不足は詳細な対象を出さず、操作不可だけを伝える。
     return 'この操作を行う権限がありません。'
   }
 

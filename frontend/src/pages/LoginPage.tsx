@@ -1,6 +1,9 @@
 import type { FormEvent } from 'react'
 import { AuthShell } from '../components/AuthShell'
 
+/**
+ * ログイン画面に表示する入力値、エラー、送信状態、操作。
+ */
 type Props = {
   email: string
   password: string
@@ -14,6 +17,9 @@ type Props = {
   onShowRegister: () => void
 }
 
+/**
+ * メールアドレスとパスワードでログインする未認証ユーザー向けページ。
+ */
 export function LoginPage(props: Props) {
   const {
     email,

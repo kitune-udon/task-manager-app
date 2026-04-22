@@ -33,4 +33,7 @@ public class TaskUpdateRequest {
     private LocalDate dueDate;
 
     private Long assignedUserId;
+
+    @NotNull(message = "versionを指定してください")
+    private Long version;
 }

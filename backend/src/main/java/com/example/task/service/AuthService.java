@@ -33,6 +33,15 @@ public class AuthService {
     private final StructuredLogService structuredLogService;
     private final RequestLogContext requestLogContext;
 
+    /**
+     * コンストラクタ。
+     *
+     * @param userRepository ユーザーリポジトリ
+     * @param passwordEncoder パスワードエンコーダー
+     * @param jwtUtil JWT ユーティリティ
+     * @param structuredLogService 構造化ログサービス
+     * @param requestLogContext リクエストログコンテキスト
+     */
     public AuthService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
@@ -101,12 +110,23 @@ public class AuthService {
                 .build();
     }
 
+    /**
+     * 不正なメールアドレス又はパスワードの例外を生成してログを記録します。
+     *
+     * @param email メールアドレス
+     * @return 不正認証例外
+     */
     private BadCredentialsException buildBadCredentials(String email) {
         logLoginFailure(email);
         requestLogContext.suppressSystem4xxLog();
         return new BadCredentialsException("Invalid email or password.");
     }
 
+    /**
+     * ログイン成功をセキュリティログに記録します。
+     *
+     * @param user ログインしたユーザー
+     */
     private void logLoginSuccess(User user) {
         LinkedHashMap<String, Object> fields = structuredLogService.currentRequestFields(
                 HttpStatus.OK.value(),
@@ -119,6 +139,11 @@ public class AuthService {
         structuredLogService.infoSecurity("LOG-AUTH-001", "ログイン成功", fields);
     }
 
+    /**
+     * ログイン失敗をセキュリティログに記録します。
+     *
+     * @param email ログイン試行したメールアドレス
+     */
     private void logLoginFailure(String email) {
         LinkedHashMap<String, Object> fields = structuredLogService.currentRequestFields(
                 HttpStatus.UNAUTHORIZED.value(),
@@ -131,6 +156,11 @@ public class AuthService {
         structuredLogService.warnSecurity("LOG-AUTH-002", "ログイン失敗", fields);
     }
 
+    /**
+     * ユーザー登録成功をセキュリティログに記録します。
+     *
+     * @param user 登録されたユーザー
+     */
     private void logRegisterSuccess(User user) {
         LinkedHashMap<String, Object> fields = structuredLogService.currentRequestFields(
                 HttpStatus.CREATED.value(),
@@ -143,6 +173,14 @@ public class AuthService {
         structuredLogService.infoSecurity("LOG-AUTH-004", "ユーザー登録成功", fields);
     }
 
+    /**
+     * ユーザー登録失敗をセキュリティログに記録します。
+     *
+     * @param status HTTP ステータスコード
+     * @param errorCode エラーコード
+     * @param safeMessage クライアントに返すメッセージ
+     * @param email 登録試行したメールアドレス
+     */
     private void logRegisterFailure(int status, String errorCode, String safeMessage, String email) {
         LinkedHashMap<String, Object> fields = structuredLogService.currentRequestFields(
                 status,

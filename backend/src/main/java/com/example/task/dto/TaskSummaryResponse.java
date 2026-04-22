@@ -21,4 +21,5 @@ public class TaskSummaryResponse {
     private LocalDate dueDate;
     private TaskUserResponse assignedUser;
     private LocalDateTime updatedAt;
+    private Long version;
 }

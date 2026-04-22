@@ -47,6 +47,35 @@ class JwtPropertiesValidationTests {
                 });
     }
 
+    @Test
+    @DisplayName("JWT secret の前後空白は除去して利用できる")
+    void trimsSecretBeforeValidation() {
+        contextRunner
+                .withPropertyValues(
+                        "app.jwt.secret=  " + TEST_SECRET + "  ",
+                        "app.jwt.expiration-millis=3600000"
+                )
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context.getBean(JwtProperties.class).getSecret()).isEqualTo(TEST_SECRET);
+                });
+    }
+
+    @Test
+    @DisplayName("JWT secret が Base64 不正なら起動時に失敗する")
+    void failsWhenSecretIsNotBase64() {
+        contextRunner
+                .withPropertyValues(
+                        "app.jwt.secret=not-base64-secret",
+                        "app.jwt.expiration-millis=3600000"
+                )
+                .run(context -> {
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure())
+                            .hasStackTraceContaining("app.jwt.secret must be a valid Base64 string");
+                });
+    }
+
     @Configuration(proxyBeanMethods = false)
     @EnableConfigurationProperties(JwtProperties.class)
     static class TestConfiguration {

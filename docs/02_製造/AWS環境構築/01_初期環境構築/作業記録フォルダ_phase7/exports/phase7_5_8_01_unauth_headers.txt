@@ -1,0 +1,20 @@
+HTTP/2 401 
+content-type: application/json;charset=UTF-8
+content-length: 203
+server: nginx
+date: Mon, 13 Apr 2026 02:49:20 GMT
+x-frame-options: DENY
+vary: Origin
+vary: Access-Control-Request-Method
+vary: Access-Control-Request-Headers
+x-request-id: phase7-5-8-unauth-1776048485
+x-content-type-options: nosniff
+x-xss-protection: 0
+cache-control: no-cache, no-store, max-age=0, must-revalidate
+pragma: no-cache
+expires: 0
+x-cache: Error from cloudfront
+via: 1.1 e4ee532dec1cdba5a2ee98e81d0c17f2.cloudfront.net (CloudFront)
+x-amz-cf-pop: KIX82-P3
+x-amz-cf-id: AECXpjDAgUHzNrAJcoFCushkqqSNLlSdmp_VgNd90snaK0L-SKKwjQ==
+

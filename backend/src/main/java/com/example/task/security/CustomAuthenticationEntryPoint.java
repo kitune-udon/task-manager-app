@@ -24,6 +24,12 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
     private final ObjectMapper objectMapper;
     private final StructuredLogService structuredLogService;
 
+    /**
+     * 認証エントリーポイントを生成する。
+     *
+     * @param objectMapper JSONシリアライザー
+     * @param structuredLogService 構造化ログサービス
+     */
     public CustomAuthenticationEntryPoint(
             ObjectMapper objectMapper,
             StructuredLogService structuredLogService
@@ -32,17 +38,29 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
         this.structuredLogService = structuredLogService;
     }
 
+    /**
+     * 未認証アクセスを処理し、401のJSONエラーレスポンスを返す。
+     *
+     * <p>JWT検証などの前段処理が設定した認証エラーコードを参照し、API共通のエラー形式へ整形する。</p>
+     *
+     * @param request HTTPリクエスト
+     * @param response HTTPレスポンス
+     * @param authException 認証例外
+     * @throws IOException レスポンス書き込みに失敗した場合
+     */
     @Override
     public void commence(
             HttpServletRequest request,
             HttpServletResponse response,
             AuthenticationException authException
     ) throws IOException {
+        // JwtAuthenticationFilter が詳細な理由を設定していない場合は、汎用の未認証エラーとして扱う。
         String errorCode = (String) request.getAttribute("authErrorCode");
         if (errorCode == null) {
             errorCode = ErrorCode.AUTH_001.getCode();
         }
 
+        // クライアントに返すメッセージは公開してよい定型文に限定する。
         String message = ErrorCode.AUTH_001.getDefaultMessage();
         if (ErrorCode.AUTH_003.getCode().equals(errorCode)) {
             message = ErrorCode.AUTH_003.getDefaultMessage();
@@ -50,6 +68,7 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
             message = ErrorCode.AUTH_004.getDefaultMessage();
         }
 
+        // 単純な未認証アクセスのみセキュリティイベントとして記録し、期限切れなどの既知エラーは応答に専念する。
         if (ErrorCode.AUTH_001.getCode().equals(errorCode)) {
             var fields = structuredLogService.requestFields(
                     request,

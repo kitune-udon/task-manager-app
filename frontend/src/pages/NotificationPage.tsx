@@ -1,0 +1,260 @@
+import type { MouseEvent } from 'react'
+import type { NotificationItem } from '../lib/notificationApi'
+import { TaskShell } from '../components/TaskShell'
+import { buildNotificationDetailLines, formatActivityEventTypeLabel } from '../utils/activityDisplay'
+import { formatDateTime } from '../utils/format'
+
+/**
+ * 通知一覧画面に表示する通知データ、ページング状態、既読操作。
+ */
+type Props = {
+  activePath: string
+  currentUserLabel: string
+  onNavigate: (path: string) => void
+  onLogout: () => void
+  unreadCount: number
+  notifications: NotificationItem[]
+  unreadOnly: boolean
+  currentPage: number
+  totalPages: number
+  totalElements: number
+  isLoadingNotifications: boolean
+  isMarkingAllRead: boolean
+  activeNotificationId: number | null
+  activeNotificationAction: 'open' | 'mark-read' | null
+  notificationErrorMessage: string
+  onUnreadOnlyChange: (value: boolean) => void
+  onReload: () => void
+  onPageChange: (page: number) => void
+  onOpenNotification: (notification: NotificationItem) => void
+  onMarkAsRead: (notification: NotificationItem) => void
+  onMarkAllRead: () => void
+}
+
+/**
+ * 通知一覧、未読フィルタ、ページング、既読化、関連タスク遷移を表示するページ。
+ */
+export function NotificationPage({
+  activePath,
+  currentUserLabel,
+  onNavigate,
+  onLogout,
+  unreadCount,
+  notifications,
+  unreadOnly,
+  currentPage,
+  totalPages,
+  totalElements,
+  isLoadingNotifications,
+  isMarkingAllRead,
+  activeNotificationId,
+  activeNotificationAction,
+  notificationErrorMessage,
+  onUnreadOnlyChange,
+  onReload,
+  onPageChange,
+  onOpenNotification,
+  onMarkAsRead,
+  onMarkAllRead,
+}: Props) {
+  const isEmpty = notifications.length === 0
+
+  return (
+    <TaskShell
+      title="通知一覧"
+      description="未読通知の確認や既読化、関連タスクへの遷移ができます。"
+      activePath={activePath}
+      onNavigate={onNavigate}
+      onLogout={onLogout}
+      currentUserLabel={currentUserLabel}
+      unreadCount={unreadCount}
+      actions={
+        <>
+          <button className="secondary-button" onClick={onReload} type="button">
+            再読込
+          </button>
+          {unreadCount > 0 || isMarkingAllRead ? (
+            <button className="primary-button" disabled={isMarkingAllRead} onClick={onMarkAllRead} type="button">
+              {isMarkingAllRead ? '既読化中...' : '一括既読'}
+            </button>
+          ) : null}
+        </>
+      }
+    >
+      {notificationErrorMessage ? <div className="status-box error-box">{notificationErrorMessage}</div> : null}
+
+      <section className="panel section-panel">
+        <div className="notification-toolbar">
+          <label className="notification-toggle">
+            <input checked={unreadOnly} onChange={(event) => onUnreadOnlyChange(event.target.checked)} type="checkbox" />
+            <span>未読のみ表示</span>
+          </label>
+          <p className="notification-count-label">全 {totalElements} 件</p>
+        </div>
+
+        <div className="table-card">
+          {isLoadingNotifications ? (
+            <p className="empty-message padded-message">通知を読み込み中です...</p>
+          ) : isEmpty ? (
+            <p className="empty-message padded-message">{unreadOnly ? '未読通知はありません。' : '通知はありません。'}</p>
+          ) : (
+            <>
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>通知種別</th>
+                      <th>既読状態</th>
+                      <th>メッセージ</th>
+                      <th>関連タスク</th>
+                      <th>通知日時</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {notifications.map((notification) => {
+                      const isActive = activeNotificationId === notification.id
+                      const isOpening = isActive && activeNotificationAction === 'open'
+                      const isMarkingRead = isActive && activeNotificationAction === 'mark-read'
+                      const openLabel = `${notification.relatedTaskTitle ?? '関連タスク'}の詳細を開く`
+                      // 変更内容や添付ファイル名など、イベント種別ごとの補足情報を行内に展開する。
+                      const detailLines = buildNotificationDetailLines(notification.eventType, notification.detailJson)
+
+                      return (
+                        <tr
+                          className={notification.isRead ? 'notification-row' : 'notification-row notification-row-unread'}
+                          key={notification.id}
+                        >
+                          <td>
+                            <button
+                              aria-label={openLabel}
+                              className="notification-row-button"
+                              disabled={isActive}
+                              onClick={() => void onOpenNotification(notification)}
+                              type="button"
+                            >
+                              {formatActivityEventTypeLabel(notification.eventType)}
+                            </button>
+                          </td>
+                          <td>
+                            <button
+                              aria-label={openLabel}
+                              className="notification-row-button"
+                              disabled={isActive}
+                              onClick={() => void onOpenNotification(notification)}
+                              type="button"
+                            >
+                              <span className={notification.isRead ? 'badge badge-muted' : 'badge badge-attention'}>
+                                {notification.isRead ? '既読' : '未読'}
+                              </span>
+                            </button>
+                          </td>
+                          <td>
+                            <button
+                              aria-label={openLabel}
+                              className="notification-row-button"
+                              disabled={isActive}
+                              onClick={() => void onOpenNotification(notification)}
+                              type="button"
+                            >
+                              <span className="notification-message-block">
+                                <span className="notification-message-text">{notification.message}</span>
+                                {detailLines.length > 0 ? (
+                                  <span className="notification-detail-list">
+                                    {detailLines.map((line) => {
+                                      const isMoreLine = line.startsWith('他')
+                                      const isFileLine = line.startsWith('対象ファイル:')
+
+                                      return (
+                                        <span
+                                          className={[
+                                            'notification-detail-item',
+                                            isFileLine ? 'notification-detail-file' : '',
+                                            isMoreLine ? 'notification-detail-more' : '',
+                                          ]
+                                            .filter(Boolean)
+                                            .join(' ')}
+                                          key={line}
+                                        >
+                                          {line}
+                                        </span>
+                                      )
+                                    })}
+                                  </span>
+                                ) : null}
+                              </span>
+                            </button>
+                          </td>
+                          <td>
+                            <button
+                              aria-label={openLabel}
+                              className="notification-row-button"
+                              disabled={isActive}
+                              onClick={() => void onOpenNotification(notification)}
+                              type="button"
+                            >
+                              {notification.relatedTaskTitle ?? '-'}
+                            </button>
+                          </td>
+                          <td>
+                            <button
+                              aria-label={openLabel}
+                              className="notification-row-button"
+                              disabled={isActive}
+                              onClick={() => void onOpenNotification(notification)}
+                              type="button"
+                            >
+                              {formatDateTime(notification.createdAt)}
+                            </button>
+                          </td>
+                          <td>
+                            <div className="notification-row-actions">
+                              <button
+                                className="table-action-button"
+                                disabled={notification.isRead || isActive}
+                                onClick={(event: MouseEvent<HTMLButtonElement>) => {
+                                  // 行全体の「関連タスクを開く」操作とは独立して既読化する。
+                                  event.stopPropagation()
+                                  void onMarkAsRead(notification)
+                                }}
+                                type="button"
+                              >
+                                {isOpening || isMarkingRead ? '処理中...' : '既読にする'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="pagination-bar">
+                <button
+                  className="secondary-button"
+                  disabled={currentPage <= 0}
+                  onClick={() => onPageChange(currentPage - 1)}
+                  type="button"
+                >
+                  前へ
+                </button>
+                <p className="pagination-label">
+                  {totalPages === 0 ? '0 / 0' : `${currentPage + 1} / ${totalPages}`}
+                </p>
+                <button
+                  className="secondary-button"
+                  disabled={totalPages === 0 || currentPage >= totalPages - 1}
+                  onClick={() => onPageChange(currentPage + 1)}
+                  type="button"
+                >
+                  次へ
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </section>
+    </TaskShell>
+  )
+}

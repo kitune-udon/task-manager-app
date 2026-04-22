@@ -10,19 +10,22 @@ import com.example.task.entity.Task;
 import com.example.task.entity.TaskStatus;
 import com.example.task.entity.User;
 import com.example.task.exception.BusinessException;
+import com.example.task.exception.ConflictException;
 import com.example.task.exception.ErrorCode;
 import com.example.task.exception.ResourceNotFoundException;
-import com.example.task.logging.StructuredLogService;
 import com.example.task.repository.TaskRepository;
 import com.example.task.repository.UserRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.task.security.CurrentUserProvider;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -35,18 +38,24 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
-    private final StructuredLogService structuredLogService;
+    private final TaskAuthorizationService taskAuthorizationService;
+    private final ActivityNotificationService activityNotificationService;
+    private final ObjectMapper objectMapper;
 
     public TaskService(
             TaskRepository taskRepository,
             UserRepository userRepository,
             CurrentUserProvider currentUserProvider,
-            StructuredLogService structuredLogService
+            TaskAuthorizationService taskAuthorizationService,
+            ActivityNotificationService activityNotificationService,
+            ObjectMapper objectMapper
     ) {
         this.taskRepository = taskRepository;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
-        this.structuredLogService = structuredLogService;
+        this.taskAuthorizationService = taskAuthorizationService;
+        this.activityNotificationService = activityNotificationService;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -54,6 +63,7 @@ public class TaskService {
      */
     @Transactional
     public TaskResponse createTask(TaskCreateRequest request) {
+        User currentUser = resolveCurrentUser();
         Task task = Task.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
@@ -61,11 +71,11 @@ public class TaskService {
                 .priority(request.getPriority())
                 .dueDate(request.getDueDate())
                 .assignedUser(resolveAssignedUser(request.getAssignedUserId()))
-                .createdBy(resolveCurrentUser())
+                .createdBy(currentUser)
                 .build();
 
         Task saved = taskRepository.save(task);
-        logTaskCreated(saved.getId());
+        activityNotificationService.recordTaskCreated(currentUser, saved);
         return toDetailResponse(saved);
     }
 
@@ -89,8 +99,7 @@ public class TaskService {
     @Transactional(readOnly = true)
     public TaskResponse getTask(Long taskId) {
         Long currentUserId = currentUserProvider.getCurrentUserId();
-        Task task = getTaskEntity(taskId);
-        authorizeTaskView(task, currentUserId);
+        Task task = taskAuthorizationService.getViewableTask(taskId, currentUserId);
         return toDetailResponse(task);
     }
 
@@ -99,10 +108,17 @@ public class TaskService {
      */
     @Transactional
     public TaskResponse updateTask(Long taskId, TaskUpdateRequest request) {
+        User currentUser = resolveCurrentUser();
         Long currentUserId = currentUserProvider.getCurrentUserId();
-        Task task = getTaskEntity(taskId);
-        authorizeTaskUpdate(task, currentUserId);
+        Task task = taskAuthorizationService.getUpdatableTask(taskId, currentUserId);
+
+        if (!Objects.equals(task.getVersion(), request.getVersion())) {
+            throw new ConflictException(ErrorCode.TASK_007);
+        }
+
+        Long previousAssigneeId = extractUserId(task.getAssignedUser());
         List<String> changedFields = resolveChangedFields(task, request);
+        JsonNode detailJson = resolveTaskDetailJson(task, request);
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
         task.setStatus(request.getStatus());
@@ -110,9 +126,13 @@ public class TaskService {
         task.setDueDate(request.getDueDate());
         task.setAssignedUser(resolveAssignedUser(request.getAssignedUserId()));
 
-        Task saved = taskRepository.save(task);
-        logTaskUpdated(saved.getId(), changedFields);
-        return toDetailResponse(saved);
+        try {
+            Task saved = taskRepository.saveAndFlush(task);
+            activityNotificationService.recordTaskUpdated(currentUser, saved, changedFields, detailJson, previousAssigneeId);
+            return toDetailResponse(saved);
+        } catch (ObjectOptimisticLockingFailureException ex) {
+            throw new ConflictException(ErrorCode.TASK_007);
+        }
     }
 
     /**
@@ -120,18 +140,20 @@ public class TaskService {
      */
     @Transactional
     public void deleteTask(Long taskId) {
+        User currentUser = resolveCurrentUser();
         Long currentUserId = currentUserProvider.getCurrentUserId();
-        Task task = getTaskEntity(taskId);
-        authorizeTaskDelete(task, currentUserId);
-        taskRepository.delete(task);
-        logTaskDeleted(taskId);
+        Task task = taskAuthorizationService.getDeletableTask(taskId, currentUserId);
+        task.setDeletedAt(LocalDateTime.now());
+        task.setDeletedBy(currentUser);
+        taskRepository.save(task);
+        activityNotificationService.recordTaskDeleted(currentUser, task);
     }
 
     /**
      * 詳細取得や更新で共通利用するタスク取得処理。
      */
     private Task getTaskEntity(Long taskId) {
-        return taskRepository.findWithAssignedUserById(taskId)
+        return taskRepository.findWithAssignedUserByIdAndDeletedAtIsNull(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         ErrorCode.RES_TASK_404,
                         "タスクが存在しません"
@@ -167,61 +189,6 @@ public class TaskService {
     }
 
     /**
-     * 閲覧可能条件を満たさない場合は 403 エラーへ変換する。
-     */
-    private void authorizeTaskView(Task task, Long currentUserId) {
-        if (canViewTask(task, currentUserId)) {
-            return;
-        }
-
-        throw new BusinessException(ErrorCode.AUTH_005, "対象タスクの参照権限がありません");
-    }
-
-    /**
-     * 更新権限は閲覧可能かどうかと同じ条件で判定する。
-     */
-    private void authorizeTaskUpdate(Task task, Long currentUserId) {
-        if (canUpdateTask(task, currentUserId)) {
-            return;
-        }
-
-        throw new BusinessException(ErrorCode.PERM_TASK_403_UPD);
-    }
-
-    /**
-     * 削除は作成者本人のみ許可する。
-     */
-    private void authorizeTaskDelete(Task task, Long currentUserId) {
-        if (canDeleteTask(task, currentUserId)) {
-            return;
-        }
-
-        throw new BusinessException(ErrorCode.PERM_TASK_403_DEL);
-    }
-
-    private boolean canViewTask(Task task, Long currentUserId) {
-        return isTaskCreator(task, currentUserId) || isTaskAssignee(task, currentUserId);
-    }
-
-    private boolean canUpdateTask(Task task, Long currentUserId) {
-        return canViewTask(task, currentUserId);
-    }
-
-    private boolean canDeleteTask(Task task, Long currentUserId) {
-        return isTaskCreator(task, currentUserId);
-    }
-
-    private boolean isTaskCreator(Task task, Long currentUserId) {
-        User createdBy = task.getCreatedBy();
-        return createdBy != null && currentUserId.equals(createdBy.getId());
-    }
-
-    private boolean isTaskAssignee(Task task, Long currentUserId) {
-        User assignedUser = task.getAssignedUser();
-        return assignedUser != null && currentUserId.equals(assignedUser.getId());
-    }
-
-    /**
      * 部分一致検索用に前後へワイルドカードを付与し、小文字で統一する。
      */
     private String toKeywordPattern(String keyword) {
@@ -245,6 +212,7 @@ public class TaskService {
                 .dueDate(task.getDueDate())
                 .assignedUser(toTaskUserResponse(assignedUser))
                 .updatedAt(task.getUpdatedAt())
+                .version(task.getVersion())
                 .build();
     }
 
@@ -266,6 +234,7 @@ public class TaskService {
                 .createdBy(toTaskUserResponse(createdBy))
                 .createdAt(task.getCreatedAt())
                 .updatedAt(task.getUpdatedAt())
+                .version(task.getVersion())
                 .build();
     }
 
@@ -281,42 +250,6 @@ public class TaskService {
                 .id(user.getId())
                 .name(user.getName())
                 .build();
-    }
-
-    private void logTaskCreated(Long taskId) {
-        LinkedHashMap<String, Object> fields = structuredLogService.currentRequestFields(
-                HttpStatus.CREATED.value(),
-                true,
-                false,
-                false
-        );
-        fields.put("taskId", taskId);
-        structuredLogService.infoAudit("LOG-TASK-001", "タスク作成成功", fields);
-    }
-
-    private void logTaskUpdated(Long taskId, List<String> changedFields) {
-        LinkedHashMap<String, Object> fields = structuredLogService.currentRequestFields(
-                HttpStatus.OK.value(),
-                true,
-                false,
-                false
-        );
-        fields.put("taskId", taskId);
-        if (!changedFields.isEmpty()) {
-            fields.put("changedFields", changedFields);
-        }
-        structuredLogService.infoAudit("LOG-TASK-002", "タスク更新成功", fields);
-    }
-
-    private void logTaskDeleted(Long taskId) {
-        LinkedHashMap<String, Object> fields = structuredLogService.currentRequestFields(
-                HttpStatus.NO_CONTENT.value(),
-                true,
-                false,
-                false
-        );
-        fields.put("taskId", taskId);
-        structuredLogService.infoAudit("LOG-TASK-003", "タスク削除成功", fields);
     }
 
     private List<String> resolveChangedFields(Task task, TaskUpdateRequest request) {
@@ -342,6 +275,48 @@ public class TaskService {
         }
 
         return changedFields;
+    }
+
+    private JsonNode resolveTaskDetailJson(Task task, TaskUpdateRequest request) {
+        List<LinkedHashMap<String, Object>> changes = new ArrayList<>();
+
+        appendTaskChange(changes, "title", task.getTitle(), request.getTitle());
+        appendTaskChange(changes, "description", task.getDescription(), request.getDescription());
+        appendTaskChange(changes, "status", task.getStatus(), request.getStatus());
+        appendTaskChange(changes, "priority", task.getPriority(), request.getPriority());
+        appendTaskChange(changes, "dueDate", task.getDueDate(), request.getDueDate());
+        appendTaskChange(changes, "assignedUserId", extractUserId(task.getAssignedUser()), request.getAssignedUserId());
+
+        if (changes.isEmpty()) {
+            return null;
+        }
+
+        return objectMapper.valueToTree(java.util.Map.of("changes", changes));
+    }
+
+    private void appendTaskChange(List<LinkedHashMap<String, Object>> changes, String field, Object oldValue, Object newValue) {
+        Object normalizedOldValue = normalizeActivityValue(oldValue);
+        Object normalizedNewValue = normalizeActivityValue(newValue);
+
+        if (Objects.equals(normalizedOldValue, normalizedNewValue)) {
+            return;
+        }
+
+        LinkedHashMap<String, Object> change = new LinkedHashMap<>();
+        change.put("field", field);
+        change.put("oldValue", normalizedOldValue);
+        change.put("newValue", normalizedNewValue);
+        changes.add(change);
+    }
+
+    private Object normalizeActivityValue(Object value) {
+        if (value instanceof Enum<?> enumValue) {
+            return enumValue.name();
+        }
+        if (value instanceof java.time.LocalDate dateValue) {
+            return dateValue.toString();
+        }
+        return value;
     }
 
     private Long extractUserId(User user) {

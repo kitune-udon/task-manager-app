@@ -24,11 +24,26 @@ public class RequestIdFilter extends OncePerRequestFilter {
     private final StructuredLogService structuredLogService;
     private final RequestLogContext requestLogContext;
 
+    /**
+     * リクエストIDフィルターを生成する。
+     *
+     * @param structuredLogService 構造化ログサービス
+     * @param requestLogContext リクエストログコンテキスト
+     */
     public RequestIdFilter(StructuredLogService structuredLogService, RequestLogContext requestLogContext) {
         this.structuredLogService = structuredLogService;
         this.requestLogContext = requestLogContext;
     }
 
+    /**
+     * リクエストIDを設定し、後続処理の完了後にアクセスログを出力する。
+     *
+     * @param request HTTPリクエスト
+     * @param response HTTPレスポンス
+     * @param filterChain フィルターチェーン
+     * @throws ServletException 後続フィルターの処理に失敗した場合
+     * @throws IOException 後続フィルターまたはレスポンス書き込みに失敗した場合
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -47,11 +62,18 @@ public class RequestIdFilter extends OncePerRequestFilter {
         try {
             filterChain.doFilter(request, response);
         } finally {
+            // 例外発生時もアクセスログ出力とMDCの後始末を必ず行う。
             emitAccessLogIfNeeded(request, response);
             requestLogContext.clearMdc();
         }
     }
 
+    /**
+     * ログ対象のリクエストであればアクセスログを出力する。
+     *
+     * @param request HTTPリクエスト
+     * @param response HTTPレスポンス
+     */
     private void emitAccessLogIfNeeded(HttpServletRequest request, HttpServletResponse response) {
         if (requestLogContext.shouldSkipAccessLog(request, response)) {
             return;

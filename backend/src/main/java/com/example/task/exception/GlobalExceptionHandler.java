@@ -1,6 +1,8 @@
 package com.example.task.exception;
 
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import com.example.task.dto.CommentCreateRequest;
+import com.example.task.dto.CommentUpdateRequest;
 import com.example.task.dto.TaskCreateRequest;
 import com.example.task.dto.TaskUpdateRequest;
 import com.example.task.dto.common.ErrorDetail;
@@ -16,6 +18,8 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -35,6 +39,13 @@ public class GlobalExceptionHandler {
     private final RequestLogContext requestLogContext;
     private final LoggingProperties loggingProperties;
 
+    /**
+     * グローバル例外ハンドラーを生成する。
+     *
+     * @param structuredLogService 構造化ログサービス
+     * @param requestLogContext リクエストログコンテキスト
+     * @param loggingProperties ログ出力設定
+     */
     public GlobalExceptionHandler(
             StructuredLogService structuredLogService,
             RequestLogContext requestLogContext,
@@ -47,6 +58,10 @@ public class GlobalExceptionHandler {
 
     /**
      * Bean Validation の項目エラーをフィールド単位の詳細付きで返す。
+     *
+     * @param ex 入力値検証例外
+     * @param request HTTPリクエスト
+     * @return API共通形式の入力エラーレスポンス
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
@@ -76,6 +91,10 @@ public class GlobalExceptionHandler {
 
     /**
      * ログイン失敗は認証エラーコードへ寄せて返す。
+     *
+     * @param ex 認証失敗例外
+     * @param request HTTPリクエスト
+     * @return API共通形式の認証エラーレスポンス
      */
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleBadCredentials(
@@ -92,6 +111,13 @@ public class GlobalExceptionHandler {
         );
     }
 
+    /**
+     * リソース未検出例外をエラーコードに対応するレスポンスへ変換する。
+     *
+     * @param ex リソース未検出例外
+     * @param request HTTPリクエスト
+     * @return API共通形式の未検出エラーレスポンス
+     */
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFound(
             ResourceNotFoundException ex,
@@ -101,6 +127,13 @@ public class GlobalExceptionHandler {
         return build(code.getHttpStatus(), code.getCode(), ex.getMessage(), null, request, ex);
     }
 
+    /**
+     * 競合例外をエラーコードに対応するレスポンスへ変換する。
+     *
+     * @param ex 競合例外
+     * @param request HTTPリクエスト
+     * @return API共通形式の競合エラーレスポンス
+     */
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ErrorResponse> handleConflict(
             ConflictException ex,
@@ -110,6 +143,13 @@ public class GlobalExceptionHandler {
         return build(code.getHttpStatus(), code.getCode(), ex.getMessage(), null, request, ex);
     }
 
+    /**
+     * 業務例外をエラーコードに対応するレスポンスへ変換する。
+     *
+     * @param ex 業務例外
+     * @param request HTTPリクエスト
+     * @return API共通形式の業務エラーレスポンス
+     */
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusiness(
             BusinessException ex,
@@ -119,6 +159,29 @@ public class GlobalExceptionHandler {
         return build(code.getHttpStatus(), code.getCode(), ex.getMessage(), null, request, ex);
     }
 
+    /**
+     * 添付ストレージ例外をファイル操作エラーのレスポンスへ変換する。
+     *
+     * @param ex ストレージ例外
+     * @param request HTTPリクエスト
+     * @return API共通形式のファイル操作エラーレスポンス
+     */
+    @ExceptionHandler(StorageException.class)
+    public ResponseEntity<ErrorResponse> handleStorage(
+            StorageException ex,
+            HttpServletRequest request
+    ) {
+        ErrorCode code = ex.getErrorCode();
+        return build(code.getHttpStatus(), code.getCode(), code.getDefaultMessage(), null, request, ex);
+    }
+
+    /**
+     * Spring Security の権限不足例外を認可エラーレスポンスへ変換する。
+     *
+     * @param ex アクセス拒否例外
+     * @param request HTTPリクエスト
+     * @return API共通形式の認可エラーレスポンス
+     */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(
             AccessDeniedException ex,
@@ -134,7 +197,13 @@ public class GlobalExceptionHandler {
         );
     }
 
-
+    /**
+     * データアクセス例外をDBシステムエラーのレスポンスへ変換する。
+     *
+     * @param ex データアクセス例外
+     * @param request HTTPリクエスト
+     * @return API共通形式のDBエラーレスポンス
+     */
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<ErrorResponse> handleDataAccess(
             DataAccessException ex,
@@ -150,6 +219,13 @@ public class GlobalExceptionHandler {
         );
     }
 
+    /**
+     * JSONとして読めないリクエストボディを入力エラーのレスポンスへ変換する。
+     *
+     * @param ex リクエストボディ読取例外
+     * @param request HTTPリクエスト
+     * @return API共通形式の入力エラーレスポンス
+     */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleNotReadable(
             HttpMessageNotReadableException ex,
@@ -167,6 +243,35 @@ public class GlobalExceptionHandler {
         );
     }
 
+    /**
+     * multipartリクエスト処理中の例外をファイルアップロードエラーのレスポンスへ変換する。
+     *
+     * @param ex multipart処理例外
+     * @param request HTTPリクエスト
+     * @return API共通形式のファイルアップロードエラーレスポンス
+     */
+    @ExceptionHandler({MultipartException.class, MaxUploadSizeExceededException.class})
+    public ResponseEntity<ErrorResponse> handleMultipart(
+            Exception ex,
+            HttpServletRequest request
+    ) {
+        return build(
+                ErrorCode.FILE_005.getHttpStatus(),
+                ErrorCode.FILE_005.getCode(),
+                ErrorCode.FILE_005.getDefaultMessage(),
+                null,
+                request,
+                ex
+        );
+    }
+
+    /**
+     * 個別に処理されなかった例外を汎用システムエラーのレスポンスへ変換する。
+     *
+     * @param ex 予期しない例外
+     * @param request HTTPリクエスト
+     * @return API共通形式のシステムエラーレスポンス
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(
             Exception ex,
@@ -184,6 +289,14 @@ public class GlobalExceptionHandler {
 
     /**
      * 各例外ハンドラから呼ばれる共通レスポンス生成処理。
+     *
+     * @param status HTTPステータス
+     * @param errorCode エラーコード
+     * @param message クライアントに返すメッセージ
+     * @param details 入力エラーなどの詳細情報
+     * @param request HTTPリクエスト
+     * @param ex レスポンス生成元の例外
+     * @return API共通形式のエラーレスポンス
      */
     private ResponseEntity<ErrorResponse> build(
             HttpStatus status,
@@ -207,6 +320,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(status).body(body);
     }
 
+    /**
+     * エラーレスポンスに対応する構造化ログを出力する。
+     *
+     * @param status HTTPステータス
+     * @param errorCode エラーコード
+     * @param message クライアントに返すメッセージ
+     * @param details 入力エラーなどの詳細情報
+     * @param request HTTPリクエスト
+     * @param ex レスポンス生成元の例外
+     */
     private void logResponse(
             HttpStatus status,
             String errorCode,
@@ -215,6 +338,7 @@ public class GlobalExceptionHandler {
             HttpServletRequest request,
             Exception ex
     ) {
+        // 5xxはアプリケーション障害として扱い、設定に応じてスタックトレースも残す。
         if (status.is5xxServerError()) {
             LinkedHashMap<String, Object> fields = structuredLogService.requestFields(
                     request,
@@ -233,10 +357,12 @@ public class GlobalExceptionHandler {
             return;
         }
 
+        // 2xx/3xxはこのハンドラーのログ対象外。4xxのみ業務エラーとして扱う。
         if (!status.is4xxClientError()) {
             return;
         }
 
+        // ユーザー登録失敗は認証・セキュリティ系イベントとして別チャンネルへ記録する。
         if (isRegisterValidationFailure(request, status)) {
             LinkedHashMap<String, Object> fields = structuredLogService.requestFields(
                     request,
@@ -255,6 +381,7 @@ public class GlobalExceptionHandler {
             return;
         }
 
+        // 認証/認可ハンドラーなどで個別にログ済みの4xxは重複出力しない。
         if (requestLogContext.shouldSkipSystem4xxLog(request)) {
             return;
         }
@@ -276,6 +403,10 @@ public class GlobalExceptionHandler {
 
     /**
      * リクエスト DTO とエラー項目から、返すべき業務エラーコードを決める。
+     *
+     * @param target バリデーション対象DTO
+     * @param details フィールド単位の入力エラー詳細
+     * @return 入力内容に対応するエラーコード
      */
     private ErrorCode resolveValidationErrorCode(Object target, List<ErrorDetail> details) {
         if (target instanceof TaskCreateRequest || target instanceof TaskUpdateRequest) {
@@ -290,11 +421,21 @@ public class GlobalExceptionHandler {
             }
         }
 
+        if (target instanceof CommentCreateRequest || target instanceof CommentUpdateRequest) {
+            if (hasField(details, "content")) {
+                return containsMessage(details, "1000") ? ErrorCode.COMMENT_003 : ErrorCode.COMMENT_001;
+            }
+        }
+
         return ErrorCode.VAL_INPUT_001;
     }
 
     /**
      * JSON の型不一致や enum 変換失敗を、画面で扱いやすい入力エラーへ補正する。
+     *
+     * @param ex リクエストボディ読取例外
+     * @param request HTTPリクエスト
+     * @return 入力エラーとして返すエラーコードと詳細情報
      */
     private ValidationErrorResolution resolveNotReadableValidation(
             HttpMessageNotReadableException ex,
@@ -306,6 +447,7 @@ public class GlobalExceptionHandler {
 
         Throwable cause = ex.getMostSpecificCause();
         if (cause instanceof InvalidFormatException invalidFormatException) {
+            // Jacksonの参照パスから、型変換に失敗したフィールド名を取り出す。
             String fieldName = invalidFormatException.getPath()
                     .stream()
                     .map(reference -> reference.getFieldName())
@@ -338,18 +480,59 @@ public class GlobalExceptionHandler {
         return new ValidationErrorResolution(ErrorCode.VAL_INPUT_001, null);
     }
 
+    /**
+     * リクエストがタスクAPI向けかどうかを判定する。
+     *
+     * @param request HTTPリクエスト
+     * @return タスクAPI向けの場合はtrue
+     */
     private boolean isTaskRequest(HttpServletRequest request) {
         return request.getRequestURI() != null && request.getRequestURI().startsWith("/api/tasks");
     }
 
+    /**
+     * 入力エラー詳細に指定フィールドのエラーが含まれるかを判定する。
+     *
+     * @param details 入力エラー詳細
+     * @param fieldName フィールド名
+     * @return 指定フィールドのエラーが含まれる場合はtrue
+     */
     private boolean hasField(List<ErrorDetail> details, String fieldName) {
         return details.stream().anyMatch(detail -> fieldName.equals(detail.getField()));
     }
 
+    /**
+     * 入力エラー詳細のメッセージに指定文字列が含まれるかを判定する。
+     *
+     * @param details 入力エラー詳細
+     * @param token 検索する文字列
+     * @return 指定文字列が含まれる場合はtrue
+     */
+    private boolean containsMessage(List<ErrorDetail> details, String token) {
+        return details.stream()
+                .map(ErrorDetail::getMessage)
+                .filter(Objects::nonNull)
+                .anyMatch(message -> message.contains(token));
+    }
+
+    /**
+     * ユーザー登録APIの入力エラーかどうかを判定する。
+     *
+     * @param request HTTPリクエスト
+     * @param status HTTPステータス
+     * @return ユーザー登録APIの400エラーの場合はtrue
+     */
     private boolean isRegisterValidationFailure(HttpServletRequest request, HttpStatus status) {
         return status == HttpStatus.BAD_REQUEST && "/api/auth/register".equals(request.getRequestURI());
     }
 
+    /**
+     * フィールド単位の入力エラー詳細を生成する。
+     *
+     * @param field フィールド名
+     * @param message エラーメッセージ
+     * @return 入力エラー詳細
+     */
     private ErrorDetail detail(String field, String message) {
         return ErrorDetail.builder()
                 .field(field)
@@ -357,6 +540,12 @@ public class GlobalExceptionHandler {
                 .build();
     }
 
+    /**
+     * JSON読取エラーを入力エラーへ補正した結果。
+     *
+     * @param errorCode 返却するエラーコード
+     * @param details フィールド単位の入力エラー詳細
+     */
     private record ValidationErrorResolution(ErrorCode errorCode, List<ErrorDetail> details) {
     }
 }

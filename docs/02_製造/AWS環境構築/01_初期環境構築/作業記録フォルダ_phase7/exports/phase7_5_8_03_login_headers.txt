@@ -1,0 +1,19 @@
+HTTP/2 200 
+content-type: application/json
+server: nginx
+date: Mon, 13 Apr 2026 02:49:16 GMT
+expires: 0
+x-frame-options: DENY
+vary: Origin
+vary: Access-Control-Request-Method
+vary: Access-Control-Request-Headers
+x-request-id: phase7-5-8-login-1776048485
+x-content-type-options: nosniff
+x-xss-protection: 0
+cache-control: no-cache, no-store, max-age=0, must-revalidate
+pragma: no-cache
+x-cache: Miss from cloudfront
+via: 1.1 243fa198cbda40bd225ebad0f821a442.cloudfront.net (CloudFront)
+x-amz-cf-pop: KIX82-P3
+x-amz-cf-id: m4OJyQZLTzoOfiBEJSa9bEtIKUFfjj2HYh7jwwvZJlhSVD8ReolPYQ==
+

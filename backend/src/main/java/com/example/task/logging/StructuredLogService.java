@@ -23,6 +23,13 @@ public class StructuredLogService {
     private final RequestLogContext requestLogContext;
     private final String version;
 
+    /**
+     * 構造化ログサービスを生成する。
+     *
+     * @param environment Spring環境情報
+     * @param requestLogContext リクエストログコンテキスト
+     * @param buildPropertiesProvider ビルド情報プロバイダー
+     */
     public StructuredLogService(
             Environment environment,
             RequestLogContext requestLogContext,
@@ -31,39 +38,99 @@ public class StructuredLogService {
         this.environment = environment;
         this.requestLogContext = requestLogContext;
         BuildProperties buildProperties = buildPropertiesProvider.getIfAvailable();
+        // Spring Boot の BuildProperties が利用できない実行形態では、クラスパス上のbuild-infoを直接読む。
         this.version = buildProperties != null
                 ? buildProperties.getVersion()
                 : BuildInfoResourceLoader.loadVersion();
     }
 
+    /**
+     * applicationチャンネルへDEBUGログを出力する。
+     *
+     * @param eventId イベントID
+     * @param message ログメッセージ
+     * @param fields 追加フィールド
+     */
     public void debugApplication(String eventId, String message, Map<String, Object> fields) {
         log(LogChannel.APPLICATION, Level.DEBUG, eventId, message, fields);
     }
 
+    /**
+     * applicationチャンネルへINFOログを出力する。
+     *
+     * @param eventId イベントID
+     * @param message ログメッセージ
+     * @param fields 追加フィールド
+     */
     public void infoApplication(String eventId, String message, Map<String, Object> fields) {
         log(LogChannel.APPLICATION, Level.INFO, eventId, message, fields);
     }
 
+    /**
+     * applicationチャンネルへWARNログを出力する。
+     *
+     * @param eventId イベントID
+     * @param message ログメッセージ
+     * @param fields 追加フィールド
+     */
     public void warnApplication(String eventId, String message, Map<String, Object> fields) {
         log(LogChannel.APPLICATION, Level.WARN, eventId, message, fields);
     }
 
+    /**
+     * applicationチャンネルへERRORログを出力する。
+     *
+     * @param eventId イベントID
+     * @param message ログメッセージ
+     * @param fields 追加フィールド
+     */
     public void errorApplication(String eventId, String message, Map<String, Object> fields) {
         log(LogChannel.APPLICATION, Level.ERROR, eventId, message, fields);
     }
 
+    /**
+     * securityチャンネルへINFOログを出力する。
+     *
+     * @param eventId イベントID
+     * @param message ログメッセージ
+     * @param fields 追加フィールド
+     */
     public void infoSecurity(String eventId, String message, Map<String, Object> fields) {
         log(LogChannel.SECURITY, Level.INFO, eventId, message, fields);
     }
 
+    /**
+     * securityチャンネルへWARNログを出力する。
+     *
+     * @param eventId イベントID
+     * @param message ログメッセージ
+     * @param fields 追加フィールド
+     */
     public void warnSecurity(String eventId, String message, Map<String, Object> fields) {
         log(LogChannel.SECURITY, Level.WARN, eventId, message, fields);
     }
 
+    /**
+     * auditチャンネルへINFOログを出力する。
+     *
+     * @param eventId イベントID
+     * @param message ログメッセージ
+     * @param fields 追加フィールド
+     */
     public void infoAudit(String eventId, String message, Map<String, Object> fields) {
         log(LogChannel.AUDIT, Level.INFO, eventId, message, fields);
     }
 
+    /**
+     * HTTPリクエストに紐づく共通ログフィールドを生成する。
+     *
+     * @param request HTTPリクエスト
+     * @param status HTTPステータスコード
+     * @param includeUserId ユーザーIDを含める場合はtrue
+     * @param includeIp クライアントIPを含める場合はtrue
+     * @param includeDuration 処理時間を含める場合はtrue
+     * @return リクエストログ用のフィールド
+     */
     public LinkedHashMap<String, Object> requestFields(
             HttpServletRequest request,
             Integer status,
@@ -72,6 +139,7 @@ public class StructuredLogService {
             boolean includeDuration
     ) {
         LinkedHashMap<String, Object> fields = new LinkedHashMap<>();
+        // null値はputIfPresentで除外し、ログに不要なキーを出さない。
         putIfPresent(fields, "requestId", requestLogContext.getRequestId(request));
         putIfPresent(fields, "userId", includeUserId ? requestLogContext.getAuthenticatedUserId() : null);
         putIfPresent(fields, "path", request.getRequestURI());
@@ -82,6 +150,15 @@ public class StructuredLogService {
         return fields;
     }
 
+    /**
+     * 現在のリクエストに紐づく共通ログフィールドを生成する。
+     *
+     * @param status HTTPステータスコード
+     * @param includeUserId ユーザーIDを含める場合はtrue
+     * @param includeIp クライアントIPを含める場合はtrue
+     * @param includeDuration 処理時間を含める場合はtrue
+     * @return リクエストログ用のフィールド。リクエストコンテキスト外の場合は空のフィールド
+     */
     public LinkedHashMap<String, Object> currentRequestFields(
             Integer status,
             boolean includeUserId,
@@ -94,6 +171,12 @@ public class StructuredLogService {
                 : new LinkedHashMap<>();
     }
 
+    /**
+     * メールアドレスのローカルパートをマスクする。
+     *
+     * @param email マスク対象のメールアドレス
+     * @return マスク済みメールアドレス。不正な形式または空文字の場合はnull
+     */
     public String maskEmail(String email) {
         if (!StringUtils.hasText(email) || !email.contains("@")) {
             return null;
@@ -109,31 +192,63 @@ public class StructuredLogService {
         } else if (localPart.length() == 2) {
             maskedLocalPart = localPart.charAt(0) + "*";
         } else {
+            // 3文字以上は先頭2文字だけ残し、個人情報の露出を抑える。
             maskedLocalPart = localPart.substring(0, 2) + "***";
         }
 
         return maskedLocalPart + "@" + domainPart;
     }
 
+    /**
+     * 現在有効なSpringプロファイル名を取得する。
+     *
+     * @return 有効プロファイルのカンマ区切り文字列。未指定の場合は {@code default}
+     */
     public String getEnvironmentName() {
         String[] activeProfiles = environment.getActiveProfiles();
         return activeProfiles.length == 0 ? "default" : String.join(",", activeProfiles);
     }
 
+    /**
+     * 起動時に読み込まれたプロファイル名を取得する。
+     *
+     * @return 読み込み済みプロファイル名
+     */
     public String getLoadedProfiles() {
         return getEnvironmentName();
     }
 
+    /**
+     * ログに付与するアプリケーションバージョンを取得する。
+     *
+     * @return アプリケーションバージョン
+     */
     public String getVersion() {
         return version;
     }
 
+    /**
+     * 値がnullでない場合だけフィールドへ追加する。
+     *
+     * @param fields 追加先フィールド
+     * @param key フィールド名
+     * @param value フィールド値
+     */
     public static void putIfPresent(Map<String, Object> fields, String key, Object value) {
         if (value != null) {
             fields.put(key, value);
         }
     }
 
+    /**
+     * 指定されたチャンネルとレベルで構造化ログを出力する。
+     *
+     * @param channel ログチャンネル
+     * @param level ログレベル
+     * @param eventId イベントID
+     * @param message ログメッセージ
+     * @param fields 追加フィールド
+     */
     private void log(LogChannel channel, Level level, String eventId, String message, Map<String, Object> fields) {
         String payload = StructuredLogJsonFormatter.format(
                 level.name(),
@@ -145,6 +260,7 @@ public class StructuredLogService {
                 fields
         );
 
+        // チャンネルごとのLoggerへ、指定されたレベルで整形済みJSONを流す。
         switch (level) {
             case ERROR -> channel.getLogger().error(payload);
             case WARN -> channel.getLogger().warn(payload);

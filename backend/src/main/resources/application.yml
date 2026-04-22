@@ -12,6 +12,11 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+  servlet:
+    multipart:
+      max-file-size: 12MB
+      max-request-size: 12MB
+
 management:
   endpoints:
     web:
@@ -27,6 +32,12 @@ app:
     expiration-millis: ${JWT_EXPIRATION_MILLIS:3600000}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  storage:
+    provider: ${APP_ATTACHMENT_STORAGE_TYPE:${APP_STORAGE_PROVIDER:LOCAL}}
+    local-base-path: ${APP_ATTACHMENT_LOCAL_BASE_PATH:${APP_STORAGE_LOCAL_BASE_PATH:${java.io.tmpdir}/task-manager-app-attachments}}
+    s3-bucket: ${APP_ATTACHMENT_S3_BUCKET:${APP_STORAGE_S3_BUCKET:}}
+    s3-region: ${APP_ATTACHMENT_S3_REGION:${APP_STORAGE_S3_REGION:ap-northeast-1}}
+    s3-prefix: ${APP_ATTACHMENT_S3_PREFIX:attachments}
   logging:
     include-stacktrace: ${APP_LOGGING_INCLUDE_STACKTRACE:false}
     level:
