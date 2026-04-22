@@ -1,0 +1,95 @@
+# CI workflow
+# - PR と develop push のタイミングで、backend / frontend の最低限の健全性を自動確認する
+# - ここでは本番デプロイは行わず、テストと build 成否だけを固定する
+name: ci
+
+on:
+  # develop / main 向け PR では、マージ前に壊れていないか確認する
+  pull_request:
+    branches:
+      - develop
+      - main
+
+  # develop へ直接 push された場合も CI を回して、現行ブランチの健全性を継続確認する
+  push:
+    branches:
+      - develop
+
+# この workflow ではコードの checkout だけできれば十分なため、権限は read のみに絞る
+permissions:
+  contents: read
+
+jobs:
+  # backend 側の CI
+  # - Spring Boot / Gradle プロジェクトの test と bootJar 作成までを確認する
+  # - ここで落ちる場合は、deploy workflow に進めない前提とする
+  backend-ci:
+    name: backend test and build
+    runs-on: ubuntu-latest
+
+    # backend 配下で Gradle コマンドを実行するため、working-directory を固定する
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      # リポジトリ内容を runner に取得する
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # backend は Java 17 前提のため、Temurin 17 をセットアップする
+      # あわせて Gradle キャッシュを有効にして実行時間を短縮する
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      # gradlew を GitHub Actions runner 上で実行できるようにする
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # 単体テスト / 結合テストを含む Gradle test を実行する
+      # ここで失敗した場合は、まずテストログを確認して原因を切り分ける
+      - name: Run tests
+        run: ./gradlew test --no-daemon
+
+      # backend の配備可能成果物となる bootJar が作成できることを確認する
+      # deploy workflow ではこの JAR を source bundle に含める前提
+      - name: Build bootJar
+        run: ./gradlew bootJar --no-daemon
+
+  # frontend 側の CI
+  # - npm install と build が通ることを確認する
+  # - 本番配備前に Vite / TypeScript の破綻を早めに検知する
+  frontend-ci:
+    name: frontend build
+    runs-on: ubuntu-latest
+
+    # frontend 配下で npm コマンドを実行するため、working-directory を固定する
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      # リポジトリ内容を runner に取得する
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # frontend は Vite 8 系を使っており、Node.js 22.12 以上前提で固定する
+      # npm キャッシュも使って install 時間を短縮する
+      - name: Set up Node.js 22.12
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # lockfile ベースで依存関係を再現性高くインストールする
+      - name: Install dependencies
+        run: npm ci
+
+      # TypeScript compile + Vite build を実行し、配備可能な dist が作れることを確認する
+      - name: Run build
+        run: npm run build

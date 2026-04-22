@@ -1,0 +1,20 @@
+HTTP/2 401 
+content-type: application/json;charset=UTF-8
+content-length: 210
+server: nginx
+date: Mon, 13 Apr 2026 02:49:19 GMT
+x-frame-options: DENY
+vary: Origin
+vary: Access-Control-Request-Method
+vary: Access-Control-Request-Headers
+x-request-id: phase7-5-8-invalid-1776048485
+x-content-type-options: nosniff
+x-xss-protection: 0
+cache-control: no-cache, no-store, max-age=0, must-revalidate
+pragma: no-cache
+expires: 0
+x-cache: Error from cloudfront
+via: 1.1 9e8c5aa53dc5186ca6383acfcde3b4c2.cloudfront.net (CloudFront)
+x-amz-cf-pop: KIX82-P3
+x-amz-cf-id: DWmvvw6RKfJYJvA_8qc_7tSkudwkr-0iU28qjTIc5QQBRBo_phG7PA==
+
