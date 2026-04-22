@@ -1296,6 +1296,8 @@ Authorization: Bearer <JWT>
 - 拡張子と MIME タイプの両方を検証する。
 - 件数上限と合計サイズ上限は、既存の未削除添付を含めて判定する。
 - 本フェーズの制約値は 1ファイル10MB、1タスク20件、1タスク合計100MB とする。
+- 1ファイル10MBは業務バリデーション上限であり、HTTP multipart の受信上限は `max-file-size=12MB` / `max-request-size=12MB` とする。
+- 10MB超過、または12MBのmultipart受信上限超過はいずれも `ERR-FILE-005` として扱う。
 
 ### 正常レスポンス
 
@@ -1306,7 +1308,7 @@ Authorization: Bearer <JWT>
 
 | HTTP | errorCode | 説明 |
 |---:|---|---|
-| 400 | ERR-FILE-001 / ERR-FILE-005 / ERR-FILE-006 / ERR-FILE-007 / ERR-FILE-008 | 未選択 / 1ファイルサイズ超過 / 形式不正 / 件数上限超過 / 合計サイズ上限超過 |
+| 400 | ERR-FILE-001 / ERR-FILE-005 / ERR-FILE-006 / ERR-FILE-007 / ERR-FILE-008 | 未選択 / 1ファイル10MB業務上限超過または12MB multipart受信上限超過 / 形式不正 / 件数上限超過 / 合計サイズ上限超過 |
 | 401 | ERR-AUTH-001 / 003 / 004 | 未認証 / 不正トークン / 期限切れ |
 | 403 | ERR-FILE-003 | 添付アップロード権限なし |
 | 404 | ERR-TASK-004 | タスク未存在 |
