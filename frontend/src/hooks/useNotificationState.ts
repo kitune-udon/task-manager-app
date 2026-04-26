@@ -33,11 +33,11 @@ function mapNotificationOpenError(error: unknown) {
   const code = extractApiErrorCode(error)
 
   if (code === 'ERR-TASK-004') {
-    return '関連タスクは削除済みか、参照できなくなりました。'
+    return 'アクセスできないか、削除されています'
   }
 
-  if (code === 'ERR-AUTH-005') {
-    return '関連タスクを参照する権限がありません。'
+  if (code === 'ERR-AUTH-005' || code === 'ERR-TASK-009') {
+    return 'アクセスできないか、削除されています'
   }
 
   return resolveUserMessage(error)
@@ -243,9 +243,13 @@ export function useNotificationState({ isLoggedIn, go, routeKey }: Params) {
         return
       }
 
-      await fetchTaskById(nextNotification.relatedTaskId)
+      const relatedTask = await fetchTaskById(nextNotification.relatedTaskId)
       // 遷移前に関連タスクを取得し、削除済みや権限不足をこの画面でメッセージ化する。
-      go(`/tasks/${nextNotification.relatedTaskId}`)
+      const params = new URLSearchParams({ from: 'notifications' })
+      if (relatedTask?.teamId) {
+        params.set('teamId', String(relatedTask.teamId))
+      }
+      go(`/tasks/${nextNotification.relatedTaskId}?${params.toString()}`)
     } catch (error) {
       const message = mapNotificationOpenError(error)
       await Promise.all([loadUnreadCount(), loadNotifications(currentPage, unreadOnly)])

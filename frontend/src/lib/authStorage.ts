@@ -77,7 +77,8 @@ export function clearUserId() {
  * 認証が必要なアプリ内パスかどうかを判定する。
  */
 export function isProtectedPath(pathname: string): boolean {
-  return /^\/(?:tasks(?:\/.*)?|notifications)$/.test(pathname)
+  const normalizedPathname = pathname.split(/[?#]/)[0]
+  return /^\/(?:tasks(?:\/.*)?|teams(?:\/.*)?|notifications)$/.test(normalizedPathname)
 }
 
 /**

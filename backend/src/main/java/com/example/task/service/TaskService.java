@@ -8,12 +8,17 @@ import com.example.task.dto.TaskUpdateRequest;
 import com.example.task.entity.Priority;
 import com.example.task.entity.Task;
 import com.example.task.entity.TaskStatus;
+import com.example.task.entity.Team;
+import com.example.task.entity.TeamMember;
 import com.example.task.entity.User;
 import com.example.task.exception.BusinessException;
 import com.example.task.exception.ConflictException;
 import com.example.task.exception.ErrorCode;
 import com.example.task.exception.ResourceNotFoundException;
+import com.example.task.repository.TaskAttachmentRepository;
+import com.example.task.repository.TaskCommentRepository;
 import com.example.task.repository.TaskRepository;
+import com.example.task.repository.TeamMemberRepository;
 import com.example.task.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,6 +41,9 @@ import java.util.Objects;
 public class TaskService {
 
     private final TaskRepository taskRepository;
+    private final TaskCommentRepository taskCommentRepository;
+    private final TaskAttachmentRepository taskAttachmentRepository;
+    private final TeamMemberRepository teamMemberRepository;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
     private final TaskAuthorizationService taskAuthorizationService;
@@ -44,6 +52,9 @@ public class TaskService {
 
     public TaskService(
             TaskRepository taskRepository,
+            TaskCommentRepository taskCommentRepository,
+            TaskAttachmentRepository taskAttachmentRepository,
+            TeamMemberRepository teamMemberRepository,
             UserRepository userRepository,
             CurrentUserProvider currentUserProvider,
             TaskAuthorizationService taskAuthorizationService,
@@ -51,6 +62,9 @@ public class TaskService {
             ObjectMapper objectMapper
     ) {
         this.taskRepository = taskRepository;
+        this.taskCommentRepository = taskCommentRepository;
+        this.taskAttachmentRepository = taskAttachmentRepository;
+        this.teamMemberRepository = teamMemberRepository;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
         this.taskAuthorizationService = taskAuthorizationService;
@@ -64,14 +78,17 @@ public class TaskService {
     @Transactional
     public TaskResponse createTask(TaskCreateRequest request) {
         User currentUser = resolveCurrentUser();
+        TeamMember membership = resolveTaskCreateMembership(currentUser.getId(), request.getTeamId());
+        Team team = membership.getTeam();
         Task task = Task.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .status(request.getStatus())
                 .priority(request.getPriority())
                 .dueDate(request.getDueDate())
-                .assignedUser(resolveAssignedUser(request.getAssignedUserId()))
+                .assignedUser(resolveAssignedUserInTeam(request.getAssignedUserId(), team.getId()))
                 .createdBy(currentUser)
+                .team(team)
                 .build();
 
         Task saved = taskRepository.save(task);
@@ -83,11 +100,20 @@ public class TaskService {
      * ログインユーザーが参照可能なタスクを検索条件付きで一覧化する。
      */
     @Transactional(readOnly = true)
-    public List<TaskSummaryResponse> getTasks(TaskStatus status, Priority priority, Long assignedUserId, String keyword) {
+    public List<TaskSummaryResponse> getTasks(
+            TaskStatus status,
+            Priority priority,
+            Long assignedUserId,
+            Long teamId,
+            String keyword
+    ) {
         Long currentUserId = currentUserProvider.getCurrentUserId();
+        if (teamId != null) {
+            taskAuthorizationService.authorizeTaskListInTeam(currentUserId, teamId);
+        }
         String keywordPattern = toKeywordPattern(keyword);
 
-        return taskRepository.searchAccessible(currentUserId, status, priority, assignedUserId, keywordPattern)
+        return taskRepository.searchAccessible(currentUserId, teamId, status, priority, assignedUserId, keywordPattern)
                 .stream()
                 .map(this::toSummaryResponse)
                 .toList();
@@ -124,7 +150,7 @@ public class TaskService {
         task.setStatus(request.getStatus());
         task.setPriority(request.getPriority());
         task.setDueDate(request.getDueDate());
-        task.setAssignedUser(resolveAssignedUser(request.getAssignedUserId()));
+        task.setAssignedUser(resolveAssignedUserInTeam(request.getAssignedUserId(), task.getTeam().getId()));
 
         try {
             Task saved = taskRepository.saveAndFlush(task);
@@ -136,16 +162,19 @@ public class TaskService {
     }
 
     /**
-     * 作成者権限を確認したうえでタスクを物理削除する。
+     * 削除権限を確認したうえでタスクと子データを論理削除する。
      */
     @Transactional
     public void deleteTask(Long taskId) {
         User currentUser = resolveCurrentUser();
         Long currentUserId = currentUserProvider.getCurrentUserId();
         Task task = taskAuthorizationService.getDeletableTask(taskId, currentUserId);
-        task.setDeletedAt(LocalDateTime.now());
+        LocalDateTime deletedAt = LocalDateTime.now();
+        task.setDeletedAt(deletedAt);
         task.setDeletedBy(currentUser);
         taskRepository.save(task);
+        taskCommentRepository.softDeleteActiveByTaskId(task.getId(), deletedAt, currentUser);
+        taskAttachmentRepository.softDeleteActiveByTaskId(task.getId(), deletedAt, currentUser);
         activityNotificationService.recordTaskDeleted(currentUser, task);
     }
 
@@ -161,18 +190,24 @@ public class TaskService {
     }
 
     /**
-     * 担当者 ID が指定された場合のみ関連ユーザーを解決する。
+     * 担当者 ID が指定された場合のみ、同一チーム所属ユーザーとして解決する。
      */
-    private User resolveAssignedUser(Long assignedUserId) {
+    private User resolveAssignedUserInTeam(Long assignedUserId, Long teamId) {
         if (assignedUserId == null) {
             return null;
         }
 
-        return userRepository.findById(assignedUserId)
+        User assignedUser = userRepository.findById(assignedUserId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         ErrorCode.USR_002,
                         "ユーザーが存在しません"
                 ));
+
+        if (!teamMemberRepository.existsByTeamIdAndUserId(teamId, assignedUser.getId())) {
+            throw new BusinessException(ErrorCode.TASK_010);
+        }
+
+        return assignedUser;
     }
 
     /**
@@ -203,6 +238,7 @@ public class TaskService {
      */
     private TaskSummaryResponse toSummaryResponse(Task task) {
         User assignedUser = task.getAssignedUser();
+        Team team = task.getTeam();
 
         return TaskSummaryResponse.builder()
                 .id(task.getId())
@@ -211,6 +247,8 @@ public class TaskService {
                 .priority(task.getPriority())
                 .dueDate(task.getDueDate())
                 .assignedUser(toTaskUserResponse(assignedUser))
+                .teamId(team.getId())
+                .teamName(team.getName())
                 .updatedAt(task.getUpdatedAt())
                 .version(task.getVersion())
                 .build();
@@ -222,6 +260,7 @@ public class TaskService {
     private TaskResponse toDetailResponse(Task task) {
         User assignedUser = task.getAssignedUser();
         User createdBy = task.getCreatedBy();
+        Team team = task.getTeam();
 
         return TaskResponse.builder()
                 .id(task.getId())
@@ -232,6 +271,8 @@ public class TaskService {
                 .dueDate(task.getDueDate())
                 .assignedUser(toTaskUserResponse(assignedUser))
                 .createdBy(toTaskUserResponse(createdBy))
+                .teamId(team.getId())
+                .teamName(team.getName())
                 .createdAt(task.getCreatedAt())
                 .updatedAt(task.getUpdatedAt())
                 .version(task.getVersion())
@@ -321,5 +362,12 @@ public class TaskService {
 
     private Long extractUserId(User user) {
         return user != null ? user.getId() : null;
+    }
+
+    private TeamMember resolveTaskCreateMembership(Long currentUserId, Long teamId) {
+        if (teamId == null) {
+            throw new BusinessException(ErrorCode.TASK_008);
+        }
+        return taskAuthorizationService.authorizeTaskCreateInTeam(currentUserId, teamId);
     }
 }

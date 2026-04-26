@@ -33,4 +33,7 @@ public class TaskCreateRequest {
     private LocalDate dueDate;
 
     private Long assignedUserId;
+
+    @NotNull(message = "タスクを作成するチームを指定してください")
+    private Long teamId;
 }

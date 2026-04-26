@@ -27,6 +27,7 @@ type Props = {
   onNavigate: (path: string) => void
   onLogout: () => void
   onShowList: () => void
+  onShowTeamDetail: (teamId: number | string) => void
   onStartEdit: () => void
   onCancelEdit: () => void
   onReloadDetail: () => Promise<TaskItem | null>
@@ -70,6 +71,11 @@ function formatFileSize(value?: number | null) {
   }
 
   return `${(value / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function badgeClass(base: string, value?: string | null) {
+  const normalized = value ? String(value).toLowerCase() : 'empty'
+  return `${base} ${base}-${normalized}`
 }
 
 /**
@@ -119,6 +125,7 @@ export function TaskDetailPage({
   onNavigate,
   onLogout,
   onShowList,
+  onShowTeamDetail,
   onStartEdit,
   onCancelEdit,
   onReloadDetail,
@@ -272,6 +279,25 @@ export function TaskDetailPage({
       contentAreaClassName="task-detail-content-area"
       contentBodyClassName="task-detail-content-body"
       actions={detailActions}
+      preHeader={
+        selectedTask ? (
+          <div className="task-context-banner task-detail-context-banner">
+            <span className="context-summary">
+              <span className="summary-label">チーム:</span>
+              <strong>{selectedTask.teamName ?? selectedTask.teamId ?? '-'}</strong>
+            </span>
+            {selectedTask.teamId ? (
+              <button
+                className="context-link-button"
+                onClick={() => onShowTeamDetail(selectedTask.teamId as number | string)}
+                type="button"
+              >
+                チーム詳細へ戻る
+              </button>
+            ) : null}
+          </div>
+        ) : undefined
+      }
     >
       {/* サイドバーの保存ボタンから送信できるよう、編集時は画面上部に共有formを置く。 */}
       {isEditing ? <form id={DETAIL_FORM_ID} onSubmit={onEditSubmit} /> : null}
@@ -288,9 +314,13 @@ export function TaskDetailPage({
             <section className="task-detail-main-card">
               <section className="task-detail-section">
                 <div className="task-detail-section-header">
-                  <div>
+                  <div className="task-detail-heading-block">
                     <p className="task-detail-id">タスクID: {selectedTask.id}</p>
-                    <h2 className="task-detail-section-title">本文</h2>
+                    <h2 className="task-detail-section-title">概要</h2>
+                  </div>
+                  <div className="task-detail-badge-row">
+                    <span className={badgeClass('status-badge', selectedTask.status)}>{selectedTask.status ?? '-'}</span>
+                    <span className={badgeClass('priority-badge', selectedTask.priority)}>{selectedTask.priority ?? '-'}</span>
                   </div>
                 </div>
 
@@ -329,7 +359,7 @@ export function TaskDetailPage({
                         ) : null}
                       </>
                     ) : (
-                      <div className="detail-value-box detail-description-value">{selectedTask.description ?? '-'}</div>
+                      <div className="detail-value-box detail-description-value">{selectedTask.description || '-'}</div>
                     )}
                   </label>
                 </div>
@@ -653,6 +683,11 @@ export function TaskDetailPage({
               <h3 className="task-detail-section-title">属性</h3>
               <div className="task-detail-side-grid">
                 <label className="task-detail-side-item">
+                  <span className="summary-label">チーム</span>
+                  <strong>{selectedTask.teamName ?? selectedTask.teamId ?? '-'}</strong>
+                </label>
+
+                <label className="task-detail-side-item">
                   <span className="summary-label">ステータス</span>
                   {isEditing ? (
                     <>
@@ -671,7 +706,7 @@ export function TaskDetailPage({
                       {editForm.fieldErrors.status ? <span className="field-error">{editForm.fieldErrors.status}</span> : null}
                     </>
                   ) : (
-                    <strong>{selectedTask.status ?? '-'}</strong>
+                    <span className={badgeClass('status-badge', selectedTask.status)}>{selectedTask.status ?? '-'}</span>
                   )}
                 </label>
 
@@ -696,7 +731,7 @@ export function TaskDetailPage({
                       ) : null}
                     </>
                   ) : (
-                    <strong>{selectedTask.priority ?? '-'}</strong>
+                    <span className={badgeClass('priority-badge', selectedTask.priority)}>{selectedTask.priority ?? '-'}</span>
                   )}
                 </label>
 

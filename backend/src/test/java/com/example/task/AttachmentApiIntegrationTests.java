@@ -140,7 +140,7 @@ class AttachmentApiIntegrationTests extends ApiIntegrationTestBase {
         mockMvc.perform(get("/api/tasks/{taskId}/attachments", context.task().getId())
                         .header("Authorization", bearer(context.outsiderToken())))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("ERR-AUTH-005"));
+                .andExpect(jsonPath("$.errorCode").value("ERR-TASK-009"));
     }
 
     @Test
@@ -296,7 +296,7 @@ class AttachmentApiIntegrationTests extends ApiIntegrationTestBase {
                         .file(new MockMultipartFile("file", "blocked.txt", "text/plain", new byte[]{1}))
                         .header("Authorization", bearer(context.outsiderToken())))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("ERR-TASK-005"));
+                .andExpect(jsonPath("$.errorCode").value("ERR-TASK-009"));
     }
 
     @Test
@@ -391,7 +391,7 @@ class AttachmentApiIntegrationTests extends ApiIntegrationTestBase {
         mockMvc.perform(get("/api/attachments/{attachmentId}/download", uploaded.path("id").asLong())
                         .header("Authorization", bearer(context.outsiderToken())))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("ERR-AUTH-005"));
+                .andExpect(jsonPath("$.errorCode").value("ERR-TASK-009"));
     }
 
     @Test

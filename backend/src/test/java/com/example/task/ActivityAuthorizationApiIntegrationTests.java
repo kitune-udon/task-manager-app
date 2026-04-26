@@ -58,7 +58,7 @@ class ActivityAuthorizationApiIntegrationTests extends ApiIntegrationTestBase {
         mockMvc.perform(get("/api/tasks/{taskId}/activities", context.task().getId())
                         .header("Authorization", bearer(context.outsiderToken())))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("ERR-AUTH-005"));
+                .andExpect(jsonPath("$.errorCode").value("ERR-TASK-009"));
     }
 
     @Test

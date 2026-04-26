@@ -183,8 +183,7 @@ public class AttachmentService {
     }
 
     /**
-     * 添付ファイルを削除します。削除を実施して将来的に補償削除を処理します。
-     * アップロードしたユーザーのみ削除可能です。
+     * 添付ファイルを削除します。アップロード者またはチーム管理者のみ削除可能です。
      *
      * @param attachmentId 添付ファイルID
      */
@@ -198,9 +197,11 @@ public class AttachmentService {
             throw new ResourceNotFoundException(ErrorCode.FILE_002, "添付ファイルが存在しません");
         }
 
-        if (!currentUser.getId().equals(attachment.getCreatedBy().getId())) {
-            throw new BusinessException(ErrorCode.FILE_004);
-        }
+        taskAuthorizationService.authorizeAttachmentDelete(
+                attachment.getTask(),
+                currentUser.getId(),
+                attachment.getCreatedBy().getId()
+        );
 
         attachment.setDeletedAt(LocalDateTime.now());
         attachment.setDeletedBy(currentUser);

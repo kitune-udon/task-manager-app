@@ -60,6 +60,10 @@ public class Task extends BaseEntity {
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "team_id", nullable = false)
+    private Team team;
+
     @Version
     @Column(nullable = false)
     @Builder.Default

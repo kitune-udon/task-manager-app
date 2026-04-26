@@ -304,9 +304,10 @@ export function useAuthState({ go, onUnauthorized }: Params) {
      */
     const handleUnauthorized = () => {
       const currentPath = window.location.pathname
+      const currentPathWithSearch = `${window.location.pathname}${window.location.search}`
       if (isProtectedPath(currentPath)) {
         // 再ログイン後に元のページへ戻せるよう、保護ページだけ退避する。
-        savePostLoginRedirectPath(currentPath)
+        savePostLoginRedirectPath(currentPathWithSearch)
       }
       clearUserDisplayName()
       clearUserId()
@@ -335,6 +336,7 @@ export function useAuthState({ go, onUnauthorized }: Params) {
      */
     const syncAuthRoute = () => {
       const currentPath = window.location.pathname
+      const currentPathWithSearch = `${window.location.pathname}${window.location.search}`
 
       if (isLoggingOutRef.current) {
         setMode('login')
@@ -348,7 +350,7 @@ export function useAuthState({ go, onUnauthorized }: Params) {
 
       if (!isLoggedIn && isProtectedPath(currentPath)) {
         // 直接URL入力や戻る操作で保護ページに来た場合も、ログイン後の戻り先として保存する。
-        savePostLoginRedirectPath(currentPath)
+        savePostLoginRedirectPath(currentPathWithSearch)
         setMode('login')
         if (currentPath !== '/login') {
           go('/login', true)

@@ -1,9 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
 import {
+  addTeamMemberViaApi,
   createCommentViaApi,
   createE2eUser,
   createTaskTitle,
   createTaskViaApi,
+  ensureTeamViaApi,
   getAssignableUserIdByEmail,
   getCurrentUserId,
   loginUser,
@@ -34,7 +36,9 @@ async function createAssignedTask(
   },
 ) {
   const assigneeId = await getAssignableUserIdByEmail(page, assigneeEmail)
-  return createTaskViaApi(page, title, assigneeId)
+  const team = await ensureTeamViaApi(page, createTaskTitle('playwright-ui-control-team'))
+  await addTeamMemberViaApi(page, Number(team.id), assigneeId)
+  return createTaskViaApi(page, title, assigneeId, { teamId: Number(team.id) })
 }
 
 test('UI-01: タスク更新権限がある場合は編集ボタンが表示される', async ({ page }) => {
@@ -189,7 +193,7 @@ test('UI-08: 未読通知バッジは未読件数が1件以上の場合のみ表
   await expect(page.locator('.nav-badge')).toHaveCount(0)
 
   unreadCount = 1
-  await page.locator('.sidebar').getByRole('button', { name: 'タスク作成' }).click()
+  await page.locator('.sidebar').getByRole('button', { name: '通知' }).click()
 
   await expect(page.locator('.nav-badge')).toHaveText('1')
 })

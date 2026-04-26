@@ -50,6 +50,7 @@ public class TaskController {
      * @param status 絞り込み対象のステータス（任意）
      * @param priority 絞り込み対象の優先度（任意）
      * @param assignedUserId 絞り込み対象の担当者ID（任意）
+     * @param teamId 絞り込み対象のチームID（任意）
      * @param keyword タイトルや説明に対する検索キーワード（任意）
      * @return 条件に一致するタスク概要リスト
      */
@@ -58,9 +59,10 @@ public class TaskController {
             @RequestParam(required = false) TaskStatus status,
             @RequestParam(required = false) Priority priority,
             @RequestParam(required = false) Long assignedUserId,
+            @RequestParam(required = false) Long teamId,
             @RequestParam(required = false) String keyword
     ) {
-        List<TaskSummaryResponse> response = taskService.getTasks(status, priority, assignedUserId, keyword);
+        List<TaskSummaryResponse> response = taskService.getTasks(status, priority, assignedUserId, teamId, keyword);
         return ResponseEntity.ok(response);
     }
 

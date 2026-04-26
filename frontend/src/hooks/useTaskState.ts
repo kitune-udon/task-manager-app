@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useAssignableUsers } from './useAssignableUsers'
 import { useTaskDetailState } from './useTaskDetailState'
 import { useTaskListState } from './useTaskListState'
@@ -9,6 +10,9 @@ import { useTaskMutationState } from './useTaskMutationState'
 type Params = {
   isLoggedIn: boolean
   selectedTaskId: string | null
+  routeTeamId: string | null
+  routeFrom: string | null
+  routeMode: 'view' | 'edit' | null
   go: (path: string, replace?: boolean) => void
   resetMessages: () => void
   setGlobalSuccessMessage: (value: string) => void
@@ -23,6 +27,11 @@ export type UseTaskStateResult = {
   detail: ReturnType<typeof useTaskDetailState>
   mutation: ReturnType<typeof useTaskMutationState>
   assignableUsers: ReturnType<typeof useAssignableUsers>
+  context: {
+    teamId: string | null
+    from: string | null
+    taskListPath: string
+  }
   actions: {
     reloadTasks: () => Promise<void>
     handleShowList: () => Promise<void>
@@ -43,19 +52,47 @@ export type UseTaskStateResult = {
 export function useTaskState({
   isLoggedIn,
   selectedTaskId,
+  routeTeamId,
+  routeFrom,
+  routeMode,
   go,
   resetMessages,
   setGlobalSuccessMessage,
   refreshUnreadCount,
 }: Params): UseTaskStateResult {
-  const list = useTaskListState({ isLoggedIn })
+  const list = useTaskListState({ isLoggedIn, teamId: routeTeamId })
   const detail = useTaskDetailState({ selectedTaskId })
+  const taskListPath = routeFrom === 'notifications'
+    ? '/notifications'
+    : routeTeamId
+      ? `/tasks?teamId=${encodeURIComponent(routeTeamId)}`
+      : '/tasks'
+  const assignableTeamId = routeTeamId ?? detail.selectedTask?.teamId ?? null
   const assignableUsers = useAssignableUsers({
     isLoggedIn,
     selectedTask: detail.selectedTask,
+    teamId: assignableTeamId,
   })
+
+  const buildTaskDetailPath = (taskId: number | string, mode: 'view' | 'edit' = 'view') => {
+    const params = new URLSearchParams()
+    if (routeTeamId) {
+      params.set('teamId', routeTeamId)
+    }
+    if (routeFrom) {
+      params.set('from', routeFrom)
+    }
+
+    const query = params.toString()
+    const pathname = mode === 'edit' ? `/tasks/${taskId}/edit` : `/tasks/${taskId}`
+    return query ? `${pathname}?${query}` : pathname
+  }
+
   // mutation hookには、更新後に同期が必要な一覧・詳細・担当者候補・通知の操作を渡す。
   const mutation = useTaskMutationState({
+    taskTeamId: routeTeamId,
+    taskListPath,
+    taskDetailPath: selectedTaskId ? buildTaskDetailPath(selectedTaskId) : null,
     selectedTaskId,
     selectedTask: detail.selectedTask,
     assigneeOptions: assignableUsers.assigneeOptions,
@@ -70,6 +107,21 @@ export function useTaskState({
     go,
   })
 
+  useEffect(() => {
+    if (!selectedTaskId || !detail.selectedTask) {
+      return
+    }
+
+    if (routeMode === 'edit' && !detail.isEditing) {
+      detail.startEditing()
+      return
+    }
+
+    if (routeMode !== 'edit' && detail.isEditing) {
+      detail.cancelEditing()
+    }
+  }, [detail, routeMode, selectedTaskId])
+
   /**
    * タスク一覧へ戻り、一覧を再取得する。
    */
@@ -77,7 +129,7 @@ export function useTaskState({
     resetMessages()
     list.clearTaskErrorMessage()
     detail.clearDetailErrorMessage()
-    go('/tasks')
+    go(taskListPath)
     await list.loadTasks()
   }
 
@@ -88,7 +140,12 @@ export function useTaskState({
     resetMessages()
     list.clearTaskErrorMessage()
     mutation.resetCreateState()
-    go('/tasks/new')
+    if (!routeTeamId) {
+      go('/teams')
+      return
+    }
+
+    go(`/tasks/new?teamId=${encodeURIComponent(routeTeamId)}`)
   }
 
   /**
@@ -98,7 +155,7 @@ export function useTaskState({
     resetMessages()
     list.clearTaskErrorMessage()
     detail.clearDetailErrorMessage()
-    go(`/tasks/${taskId}`)
+    go(buildTaskDetailPath(taskId))
   }
 
   /**
@@ -108,7 +165,9 @@ export function useTaskState({
     resetMessages()
     detail.clearDetailErrorMessage()
     mutation.clearEditErrors()
-    detail.startEditing()
+    if (selectedTaskId) {
+      go(buildTaskDetailPath(selectedTaskId, 'edit'))
+    }
   }
 
   /**
@@ -117,6 +176,9 @@ export function useTaskState({
   const handleCancelEdit = () => {
     mutation.resetEditForm()
     detail.cancelEditing()
+    if (selectedTaskId) {
+      go(buildTaskDetailPath(selectedTaskId), true)
+    }
   }
 
   /**
@@ -135,6 +197,11 @@ export function useTaskState({
     detail,
     mutation,
     assignableUsers,
+    context: {
+      teamId: routeTeamId,
+      from: routeFrom,
+      taskListPath,
+    },
     actions: {
       reloadTasks: list.loadTasks,
       handleShowList,

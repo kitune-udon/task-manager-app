@@ -3,12 +3,17 @@ package com.example.task.logging;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.example.task.entity.Team;
+import com.example.task.entity.TeamMember;
+import com.example.task.entity.TeamRole;
 import com.example.task.entity.User;
 import com.example.task.repository.ActivityLogRepository;
 import com.example.task.repository.NotificationRepository;
 import com.example.task.repository.TaskAttachmentRepository;
 import com.example.task.repository.TaskCommentRepository;
 import com.example.task.repository.TaskRepository;
+import com.example.task.repository.TeamMemberRepository;
+import com.example.task.repository.TeamRepository;
 import com.example.task.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -62,6 +67,12 @@ class LoggingEventIntegrationTests {
     private TaskRepository taskRepository;
 
     @Autowired
+    private TeamRepository teamRepository;
+
+    @Autowired
+    private TeamMemberRepository teamMemberRepository;
+
+    @Autowired
     private TaskCommentRepository taskCommentRepository;
 
     @Autowired
@@ -90,6 +101,8 @@ class LoggingEventIntegrationTests {
         taskAttachmentRepository.deleteAllInBatch();
         taskCommentRepository.deleteAllInBatch();
         taskRepository.deleteAllInBatch();
+        teamMemberRepository.deleteAllInBatch();
+        teamRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
         attachAppenders();
     }
@@ -185,6 +198,7 @@ class LoggingEventIntegrationTests {
     @DisplayName("タスク作成成功は audit logger に LOG-TASK-001 を出す")
     void createTaskEmitsAuditEvent() throws Exception {
         User creator = createUser("Creator", "creator@example.com", "password123");
+        Team team = createTeamWithMember(creator, "Creator Team", TeamRole.OWNER);
         String token = loginAndGetToken("creator@example.com", "password123");
         clearCapturedLogs();
 
@@ -196,7 +210,8 @@ class LoggingEventIntegrationTests {
                                 "description", "Created for logging verification",
                                 "status", "TODO",
                                 "priority", "HIGH",
-                                "dueDate", "2026-04-20"
+                                "dueDate", "2026-04-20",
+                                "teamId", team.getId()
                         ))))
                 .andExpect(status().isCreated())
                 .andReturn();
@@ -314,6 +329,19 @@ class LoggingEventIntegrationTests {
                 .password(passwordEncoder.encode(rawPassword))
                 .build();
         return userRepository.save(user);
+    }
+
+    private Team createTeamWithMember(User user, String name, TeamRole role) {
+        Team team = teamRepository.save(Team.builder()
+                .name(name)
+                .createdBy(user)
+                .build());
+        teamMemberRepository.save(TeamMember.builder()
+                .team(team)
+                .user(user)
+                .role(role)
+                .build());
+        return team;
     }
 
     private String loginAndGetToken(String email, String password) throws Exception {

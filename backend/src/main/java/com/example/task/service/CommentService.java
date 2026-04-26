@@ -8,7 +8,6 @@ import com.example.task.dto.TaskUserResponse;
 import com.example.task.entity.Task;
 import com.example.task.entity.TaskComment;
 import com.example.task.entity.User;
-import com.example.task.exception.BusinessException;
 import com.example.task.exception.ConflictException;
 import com.example.task.exception.ErrorCode;
 import com.example.task.exception.ResourceNotFoundException;
@@ -108,12 +107,12 @@ public class CommentService {
 
     /**
      * コメントを更新します。
-     * 所有者を確認し、断蔵不一致検証を処理します。
+     * 作成者またはチーム管理者であることを確認し、バージョン不一致検証を処理します。
      *
      * @param commentId コメントID
      * @param request コメント更新リクエスト
      * @return 更新されたコメントレスポンス
-     * @throws BusinessException 所有者でない場合
+     * @throws BusinessException 更新権限がない場合
      * @throws ConflictException バージョン不一致時
      */
     @Transactional
@@ -121,11 +120,12 @@ public class CommentService {
         User currentUser = resolveCurrentUser();
         TaskComment comment = getActiveComment(commentId);
         ensureParentTaskActive(comment);
-        taskAuthorizationService.authorizeView(comment.getTask(), currentUser.getId());
-
-        if (!currentUser.getId().equals(comment.getCreatedBy().getId())) {
-            throw new BusinessException(ErrorCode.COMMENT_004);
-        }
+        taskAuthorizationService.authorizeCommentMutation(
+                comment.getTask(),
+                currentUser.getId(),
+                comment.getCreatedBy().getId(),
+                ErrorCode.COMMENT_004
+        );
         if (!request.getVersion().equals(comment.getVersion())) {
             throw new ConflictException(ErrorCode.COMMENT_006);
         }
@@ -144,10 +144,10 @@ public class CommentService {
 
     /**
      * コメントを削除します。
-     * 所有者のみ削除可能で、論理削除（論理削除）を処理します。
+     * 作成者またはチーム管理者のみ削除可能で、論理削除を処理します。
      *
      * @param commentId コメントID
-     * @throws BusinessException 所有者でない場合
+     * @throws BusinessException 削除権限がない場合
      * @throws ResourceNotFoundException コメントが見つからない場合
      */
     @Transactional
@@ -155,11 +155,12 @@ public class CommentService {
         User currentUser = resolveCurrentUser();
         TaskComment comment = getActiveComment(commentId);
         ensureParentTaskActive(comment);
-        taskAuthorizationService.authorizeView(comment.getTask(), currentUser.getId());
-
-        if (!currentUser.getId().equals(comment.getCreatedBy().getId())) {
-            throw new BusinessException(ErrorCode.COMMENT_005);
-        }
+        taskAuthorizationService.authorizeCommentMutation(
+                comment.getTask(),
+                currentUser.getId(),
+                comment.getCreatedBy().getId(),
+                ErrorCode.COMMENT_005
+        );
 
         comment.setDeletedAt(LocalDateTime.now());
         comment.setDeletedBy(currentUser);

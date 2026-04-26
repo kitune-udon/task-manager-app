@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { resolveUserMessage } from '../lib/authApi'
 import { fetchTasks, type TaskItem } from '../lib/taskApi'
 
@@ -7,34 +7,36 @@ import { fetchTasks, type TaskItem } from '../lib/taskApi'
  */
 type Params = {
   isLoggedIn: boolean
+  teamId?: string | null
 }
 
 /**
  * タスク一覧、一覧フィルタ、読み込み状態、エラー状態を管理する。
  */
-export function useTaskListState({ isLoggedIn }: Params) {
+export function useTaskListState({ isLoggedIn, teamId = null }: Params) {
   const [tasks, setTasks] = useState<TaskItem[]>([])
   const [taskErrorMessage, setTaskErrorMessage] = useState('')
   const [isLoadingTasks, setIsLoadingTasks] = useState(false)
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [priorityFilter, setPriorityFilter] = useState('ALL')
+  const [teamFilter, setTeamFilter] = useState('ALL')
 
   /**
    * 参照可能なタスク一覧を取得する。
    */
-  const loadTasks = async () => {
+  const loadTasks = useCallback(async () => {
     setIsLoadingTasks(true)
     setTaskErrorMessage('')
 
     try {
-      const taskList = await fetchTasks()
+      const taskList = await fetchTasks({ teamId })
       setTasks(taskList)
     } catch (error) {
       setTaskErrorMessage(resolveUserMessage(error))
     } finally {
       setIsLoadingTasks(false)
     }
-  }
+  }, [teamId])
 
   /**
    * 現在のステータス・優先度フィルタを適用したタスク一覧。
@@ -44,9 +46,10 @@ export function useTaskListState({ isLoggedIn }: Params) {
       tasks.filter((task) => {
         const matchesStatus = statusFilter === 'ALL' || (task.status ?? '-') === statusFilter
         const matchesPriority = priorityFilter === 'ALL' || (task.priority ?? '-') === priorityFilter
-        return matchesStatus && matchesPriority
+        const matchesTeam = teamId || teamFilter === 'ALL' || String(task.teamId ?? '') === teamFilter
+        return matchesStatus && matchesPriority && matchesTeam
       }),
-    [priorityFilter, statusFilter, tasks],
+    [priorityFilter, statusFilter, tasks, teamFilter, teamId],
   )
 
   useEffect(() => {
@@ -54,7 +57,13 @@ export function useTaskListState({ isLoggedIn }: Params) {
       // ログイン後に初回一覧を取得する。
       void loadTasks()
     }
-  }, [isLoggedIn])
+  }, [isLoggedIn, loadTasks])
+
+  useEffect(() => {
+    if (teamId) {
+      setTeamFilter('ALL')
+    }
+  }, [teamId])
 
   /**
    * タスク一覧のエラーメッセージをクリアする。
@@ -70,6 +79,9 @@ export function useTaskListState({ isLoggedIn }: Params) {
     setTasks([])
     setTaskErrorMessage('')
     setIsLoadingTasks(false)
+    setStatusFilter('ALL')
+    setPriorityFilter('ALL')
+    setTeamFilter('ALL')
   }
 
   return {
@@ -79,8 +91,10 @@ export function useTaskListState({ isLoggedIn }: Params) {
     isLoadingTasks,
     statusFilter,
     priorityFilter,
+    teamFilter,
     setStatusFilter,
     setPriorityFilter,
+    setTeamFilter,
     loadTasks,
     clearTaskErrorMessage,
     clearListState,

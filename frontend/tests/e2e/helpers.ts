@@ -25,6 +25,24 @@ export type ApiTask = {
   priority?: string | null
   version?: number | null
   assignedUser?: ApiUser | null
+  teamId?: number | null
+  teamName?: string | null
+}
+
+export type ApiTeam = {
+  id: number
+  name: string
+  description?: string | null
+  myRole: 'OWNER' | 'ADMIN' | 'MEMBER'
+  memberCount: number
+}
+
+export type ApiTeamMember = {
+  memberId: number
+  userId: number
+  name?: string | null
+  email?: string | null
+  role: 'OWNER' | 'ADMIN' | 'MEMBER'
 }
 
 export type ApiComment = {
@@ -172,6 +190,65 @@ export async function getAssignableUserIdByEmail(page: Page, email: string) {
 }
 
 /**
+ * APIでチームを作成する。
+ */
+export async function createTeamViaApi(page: Page, name = createTaskTitle('playwright-team'), description = 'Playwright team') {
+  return apiRequest<ApiTeam>(page, '/api/teams', {
+    method: 'POST',
+    data: { name, description },
+  })
+}
+
+/**
+ * APIで所属チーム一覧を取得する。
+ */
+export async function getTeamsViaApi(page: Page) {
+  return apiRequest<ApiTeam[]>(page, '/api/teams')
+}
+
+/**
+ * 既存チームがあれば先頭を使い、なければ作成する。
+ */
+export async function ensureTeamViaApi(page: Page, name = createTaskTitle('playwright-team')) {
+  const teams = await getTeamsViaApi(page)
+  return teams[0] ?? createTeamViaApi(page, name)
+}
+
+/**
+ * APIでチームメンバー一覧を取得する。
+ */
+export async function getTeamMembersViaApi(page: Page, teamId: number) {
+  return apiRequest<ApiTeamMember[]>(page, `/api/teams/${teamId}/members`)
+}
+
+/**
+ * APIでチームへメンバーを追加する。
+ */
+export async function addTeamMemberViaApi(
+  page: Page,
+  teamId: number,
+  userId: number,
+  role: 'ADMIN' | 'MEMBER' = 'MEMBER',
+) {
+  return apiRequest<ApiTeamMember>(page, `/api/teams/${teamId}/members`, {
+    method: 'POST',
+    data: { userId, role },
+  })
+}
+
+/**
+ * APIで指定ユーザーをチームから削除する。
+ */
+export async function removeTeamMemberByUserIdViaApi(page: Page, teamId: number, userId: number) {
+  const members = await getTeamMembersViaApi(page, teamId)
+  const member = members.find((candidate) => Number(candidate.userId) === Number(userId))
+  if (!member) {
+    throw new Error(`Team member was not found: team=${teamId}, user=${userId}`)
+  }
+  await apiRequest<void>(page, `/api/teams/${teamId}/members/${member.memberId}`, { method: 'DELETE' })
+}
+
+/**
  * 担当者候補が存在する環境では、先頭の実ユーザーを選択する。
  */
 export async function selectFirstAssignableUserIfAvailable(page: Page) {
@@ -201,8 +278,11 @@ export async function createTaskViaUi(
     dueDate?: string
   },
 ) {
-  await page.locator('.content-header').getByRole('button', { name: 'タスク作成' }).click()
-  await expect(page).toHaveURL(/\/tasks\/new$/)
+  const team = await ensureTeamViaApi(page)
+
+  await page.goto(`/tasks?teamId=${team.id}`)
+  await page.locator('.content-header').getByRole('button', { name: 'タスクを作成する' }).click()
+  await expect(page).toHaveURL(new RegExp(`/tasks/new\\?teamId=${team.id}$`))
 
   await page.getByLabel('タイトル').fill(title)
   if (description !== undefined) {
@@ -216,7 +296,7 @@ export async function createTaskViaUi(
   await selectFirstAssignableUserIfAvailable(page)
   await page.getByRole('button', { name: 'タスクを作成' }).click()
 
-  await expect(page).toHaveURL(/\/tasks$/)
+  await expect(page).toHaveURL(new RegExp(`/tasks\\?teamId=${team.id}$`))
   await expect(page.getByText('タスクを作成しました。')).toBeVisible()
 }
 
@@ -231,8 +311,11 @@ export async function createTaskViaApi(
     description?: string
     status?: 'TODO' | 'DOING' | 'DONE'
     priority?: 'LOW' | 'MEDIUM' | 'HIGH'
+    teamId?: number
   } = {},
 ) {
+  const teamId = options.teamId ?? (await ensureTeamViaApi(page)).id
+
   return apiRequest<ApiTask>(page, '/api/tasks', {
     method: 'POST',
     data: {
@@ -241,6 +324,7 @@ export async function createTaskViaApi(
       status: options.status ?? 'TODO',
       priority: options.priority ?? 'MEDIUM',
       assignedUserId,
+      teamId,
     },
   })
 }
@@ -334,8 +418,10 @@ export async function prepareUnreadCommentNotification(
   await registerAndLogin(page, actor)
 
   const recipientId = await getAssignableUserIdByEmail(page, recipient.email)
-  const task = await createTaskViaApi(page, taskTitle, recipientId)
+  const team = await ensureTeamViaApi(page)
+  await addTeamMemberViaApi(page, Number(team.id), recipientId)
+  const task = await createTaskViaApi(page, taskTitle, recipientId, { teamId: Number(team.id) })
   const comment = await createCommentViaApi(page, task.id, commentContent)
 
-  return { actor, recipient, task, taskTitle, comment }
+  return { actor, recipient, task, taskTitle, comment, team }
 }
