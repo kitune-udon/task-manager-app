@@ -10,10 +10,21 @@ import com.example.task.entity.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MvcResult;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -59,16 +70,29 @@ class TeamConcurrentBehaviorIntegrationTests extends ApiIntegrationTestBase {
     }
 
     @Test
-    @DisplayName("CONC-03: 同一ユーザーへの重複追加でmembership重複が発生しない")
+    @DisplayName("CONC-03: 同一ユーザーへの同時重複追加でmembership重複が発生しない")
     void concurrentDuplicateAddsDoNotCreateDuplicateMemberships() throws Exception {
         TeamConcurrentContext context = newConcurrentContext();
         User target = createUser("Target", "target@example.com", "password123");
 
-        addMember(context.ownerToken(), context.team().getId(), target.getId(), TeamRole.MEMBER)
-                .andExpect(status().isCreated());
-        addMember(context.ownerToken(), context.team().getId(), target.getId(), TeamRole.MEMBER)
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.errorCode").value("ERR-TEAM-MEMBER-003"));
+        List<MvcResult> results = executeConcurrently(
+                () -> addMemberResult(context.ownerToken(), context.team().getId(), target.getId(), TeamRole.MEMBER),
+                2
+        );
+        List<Integer> statuses = results.stream()
+                .map(result -> result.getResponse().getStatus())
+                .sorted()
+                .toList();
+
+        assertEquals(List.of(201, 409), statuses);
+        MvcResult conflictResult = results.stream()
+                .filter(result -> result.getResponse().getStatus() == 409)
+                .findFirst()
+                .orElseThrow();
+        assertEquals(
+                "ERR-TEAM-MEMBER-003",
+                objectMapper.readTree(conflictResult.getResponse().getContentAsString()).path("errorCode").asText()
+        );
 
         assertEquals(1L, queryLong("""
                 select count(*)
@@ -153,6 +177,22 @@ class TeamConcurrentBehaviorIntegrationTests extends ApiIntegrationTestBase {
                 ))));
     }
 
+    private MvcResult addMemberResult(
+            String token,
+            Long teamId,
+            Long userId,
+            TeamRole role
+    ) throws Exception {
+        return mockMvc.perform(post("/api/teams/{teamId}/members", teamId)
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJson(Map.of(
+                                "userId", userId,
+                                "role", role.name()
+                        ))))
+                .andReturn();
+    }
+
     private org.springframework.test.web.servlet.ResultActions updateMemberRole(
             String token,
             Long teamId,
@@ -204,6 +244,33 @@ class TeamConcurrentBehaviorIntegrationTests extends ApiIntegrationTestBase {
     private long queryLong(String sql, Object... args) {
         Long value = jdbcTemplate.queryForObject(sql, Long.class, args);
         return value == null ? 0L : value;
+    }
+
+    private List<MvcResult> executeConcurrently(Callable<MvcResult> operation, int invocationCount) throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(invocationCount);
+        CountDownLatch ready = new CountDownLatch(invocationCount);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            List<Future<MvcResult>> futures = new ArrayList<>();
+            for (int index = 0; index < invocationCount; index += 1) {
+                futures.add(executor.submit(() -> {
+                    ready.countDown();
+                    assertTrue(start.await(5, TimeUnit.SECONDS));
+                    return operation.call();
+                }));
+            }
+
+            assertTrue(ready.await(5, TimeUnit.SECONDS));
+            start.countDown();
+
+            List<MvcResult> results = new ArrayList<>();
+            for (Future<MvcResult> future : futures) {
+                results.add(future.get(10, TimeUnit.SECONDS));
+            }
+            return Collections.unmodifiableList(results);
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     private record TeamConcurrentContext(

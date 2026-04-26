@@ -32,7 +32,7 @@ export function TeamListPage(props: Props) {
     <>
       <TaskShell
         title="チーム一覧"
-        description="所属しているチームを確認できます。"
+        description="所属しているチームを選択して、詳細やタスクを確認できます。"
         activePath={props.activePath}
         onNavigate={props.onNavigate}
         onLogout={props.onLogout}

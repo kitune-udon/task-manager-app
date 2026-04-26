@@ -40,6 +40,7 @@ public class TeamAuditLogService {
     ) {
         LinkedHashMap<String, Object> fields = memberFields(HttpStatus.OK.value(), teamId, memberUserId, actorRole);
         fields.put("previousRole", previousRole);
+        fields.put("targetRole", newRole);
         fields.put("newRole", newRole);
         structuredLogService.infoAudit("LOG-TEAM-003", "チームメンバーのロール変更成功", fields);
     }

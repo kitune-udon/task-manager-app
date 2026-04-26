@@ -96,7 +96,7 @@ export function AddMemberModal({
           </label>
 
           {!isLoadingAvailableUsers && !availableUsersError && availableUsers.length === 0 ? (
-            <p className="empty-message">追加可能なユーザーはいません。</p>
+            <p className="empty-message">追加できるユーザーがいません。</p>
           ) : null}
 
           <label>

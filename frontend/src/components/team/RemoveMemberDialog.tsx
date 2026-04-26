@@ -50,6 +50,8 @@ export function RemoveMemberDialog({
           <span className="badge">{formatTeamRole(targetMember.role)}</span>
         </div>
 
+        <p className="dialog-note">担当中タスクがあるメンバーは削除できません。</p>
+
         <div className="form-actions split-actions">
           <button className="secondary-button" disabled={isSubmitting} onClick={onClose} type="button">
             キャンセル

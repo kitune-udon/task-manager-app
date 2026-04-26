@@ -1179,6 +1179,12 @@ th { color: var(--text-subtle); font-size: 0.93rem; }
 .member-confirm-card span:not(.badge) {
   color: var(--text-subtle);
 }
+.dialog-note {
+  margin: -8px 0 22px;
+  color: var(--text-subtle);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
 .side-card-button { width: 100%; }
 .file-item {
   display: flex;

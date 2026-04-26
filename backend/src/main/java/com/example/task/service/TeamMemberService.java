@@ -14,6 +14,7 @@ import com.example.task.repository.TaskRepository;
 import com.example.task.repository.TeamMemberRepository;
 import com.example.task.repository.UserRepository;
 import com.example.task.security.CurrentUserProvider;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -70,11 +71,20 @@ public class TeamMemberService {
         }
 
         Team team = actorMembership.getTeam();
-        TeamMember saved = teamMemberRepository.save(TeamMember.builder()
-                .team(team)
-                .user(targetUser)
-                .role(targetRole)
-                .build());
+        TeamMember saved;
+        try {
+            saved = teamMemberRepository.saveAndFlush(TeamMember.builder()
+                    .team(team)
+                    .user(targetUser)
+                    .role(targetRole)
+                    .build());
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException(
+                    ErrorCode.TEAM_MEMBER_003,
+                    "LOG-TEAM-106",
+                    memberFields(teamId, targetUser.getId(), actorMembership.getRole(), targetRole)
+            );
+        }
 
         teamAuditLogService.logMemberAdded(teamId, targetUser.getId(), actorMembership.getRole(), targetRole);
         return toMemberResponse(saved);

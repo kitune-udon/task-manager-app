@@ -125,15 +125,15 @@ abstract class ApiIntegrationTestBase {
     protected Task createTask(String title, User createdBy, User assignedUser, TaskStatus status, Priority priority) {
         Team team = createTeamWithMember(createdBy, createdBy.getName() + "のチーム", TeamRole.OWNER);
         if (assignedUser != null) {
-            addTeamMember(team, assignedUser, TeamRole.MEMBER);
+            ensureTeamMembership(team, assignedUser, TeamRole.MEMBER);
         }
         return createTask(title, createdBy, assignedUser, team, status, priority);
     }
 
     protected Task createTask(String title, User createdBy, User assignedUser, Team team, TaskStatus status, Priority priority) {
-        addTeamMember(team, createdBy, TeamRole.OWNER);
+        ensureTeamMembership(team, createdBy, TeamRole.MEMBER);
         if (assignedUser != null) {
-            addTeamMember(team, assignedUser, TeamRole.MEMBER);
+            ensureTeamMembership(team, assignedUser, TeamRole.MEMBER);
         }
         Task task = Task.builder()
                 .title(title)
@@ -173,6 +173,15 @@ abstract class ApiIntegrationTestBase {
                         .team(team)
                         .user(user)
                         .role(role)
+                        .build()));
+    }
+
+    private TeamMember ensureTeamMembership(Team team, User user, TeamRole defaultRole) {
+        return teamMemberRepository.findByTeamIdAndUserId(team.getId(), user.getId())
+                .orElseGet(() -> teamMemberRepository.save(TeamMember.builder()
+                        .team(team)
+                        .user(user)
+                        .role(defaultRole)
                         .build()));
     }
 

@@ -14,6 +14,7 @@ import com.example.task.repository.TeamMemberRepository;
 import com.example.task.repository.TeamRepository;
 import com.example.task.repository.UserRepository;
 import com.example.task.security.CurrentUserProvider;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,17 +69,26 @@ public class TeamService {
             );
         }
 
-        Team team = teamRepository.save(Team.builder()
-                .name(name)
-                .description(description)
-                .createdBy(currentUser)
-                .build());
+        Team team;
+        try {
+            team = teamRepository.saveAndFlush(Team.builder()
+                    .name(name)
+                    .description(description)
+                    .createdBy(currentUser)
+                    .build());
 
-        teamMemberRepository.save(TeamMember.builder()
-                .team(team)
-                .user(currentUser)
-                .role(TeamRole.OWNER)
-                .build());
+            teamMemberRepository.saveAndFlush(TeamMember.builder()
+                    .team(team)
+                    .user(currentUser)
+                    .role(TeamRole.OWNER)
+                    .build());
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException(
+                    ErrorCode.TEAM_002,
+                    "LOG-TEAM-105",
+                    duplicateTeamFields(null, name)
+            );
+        }
 
         teamAuditLogService.logTeamCreated(team.getId(), team.getName());
         return toDetailResponse(team, TeamRole.OWNER, 1L);

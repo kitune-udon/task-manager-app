@@ -22,8 +22,10 @@ import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -174,14 +176,12 @@ class TeamManagementApiIntegrationTests extends ApiIntegrationTestBase {
     }
 
     @Test
-    @DisplayName("TEAM-L-01 TEAM-L-02: 所属チーム一覧は自分のチームのみ返す")
-    void listTeamsReturnsOwnTeamsOnly() throws Exception {
+    @DisplayName("TEAM-L-01: 所属チーム一覧を取得できる")
+    void listTeamsReturnsOwnTeams() throws Exception {
         User requester = createUser("Requester", "requester@example.com", "password123");
         User otherOwner = createUser("Other Owner", "other-owner@example.com", "password123");
-        createUser("Outsider", "outsider@example.com", "password123");
         Team ownTeam = createTeamWithMember(requester, "Alpha Team", TeamRole.OWNER);
         Team joinedTeam = createTeamWithMember(otherOwner, "Beta Team", TeamRole.OWNER);
-        createTeamWithMember(userRepository.findByEmail("outsider@example.com").orElseThrow(), "Hidden Team", TeamRole.OWNER);
         addTeamMember(joinedTeam, requester, TeamRole.MEMBER);
         String token = loginAndGetToken(requester.getEmail(), "password123");
 
@@ -190,6 +190,21 @@ class TeamManagementApiIntegrationTests extends ApiIntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[*].name", hasItems(ownTeam.getName(), joinedTeam.getName())));
+    }
+
+    @Test
+    @DisplayName("TEAM-L-02: 非所属チームは一覧に表示されない")
+    void listTeamsDoesNotReturnNonMemberTeams() throws Exception {
+        User requester = createUser("Requester", "requester@example.com", "password123");
+        User outsider = createUser("Outsider", "outsider@example.com", "password123");
+        createTeamWithMember(requester, "Alpha Team", TeamRole.OWNER);
+        createTeamWithMember(outsider, "Hidden Team", TeamRole.OWNER);
+        String token = loginAndGetToken(requester.getEmail(), "password123");
+
+        mockMvc.perform(get("/api/teams")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].name", not(hasItem("Hidden Team"))));
     }
 
     @Test
@@ -240,7 +255,7 @@ class TeamManagementApiIntegrationTests extends ApiIntegrationTestBase {
     }
 
     @Test
-    @DisplayName("TEAM-G-03 TEAM-U-01: メンバー一覧をロール優先順で取得できる")
+    @DisplayName("TEAM-U-01: メンバー一覧を取得できる")
     void getTeamMembersReturnsMembers() throws Exception {
         TeamContext context = newTeamContext();
 
@@ -248,6 +263,21 @@ class TeamManagementApiIntegrationTests extends ApiIntegrationTestBase {
                         .header("Authorization", bearer(context.ownerToken())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(3)))
+                .andExpect(jsonPath("$[*].userId", hasItems(
+                        context.owner().getId().intValue(),
+                        context.admin().getId().intValue(),
+                        context.member().getId().intValue()
+                )));
+    }
+
+    @Test
+    @DisplayName("TEAM-G-03: メンバー一覧はロール優先順で取得できる")
+    void teamMembersOrderByRoleThenJoinedAt() throws Exception {
+        TeamContext context = newTeamContext();
+
+        mockMvc.perform(get("/api/teams/{teamId}/members", context.team().getId())
+                        .header("Authorization", bearer(context.ownerToken())))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].userId").value(context.owner().getId()))
                 .andExpect(jsonPath("$[0].role").value("OWNER"))
                 .andExpect(jsonPath("$[1].userId").value(context.admin().getId()))
@@ -320,7 +350,7 @@ class TeamManagementApiIntegrationTests extends ApiIntegrationTestBase {
     }
 
     @Test
-    @DisplayName("TEAM-M-05: 既存メンバー追加は409を返す")
+    @DisplayName("TEAM-A-06: 既存メンバー追加は409を返す")
     void addMemberRejectsDuplicateMembership() throws Exception {
         TeamContext context = newTeamContext();
 
@@ -344,8 +374,8 @@ class TeamManagementApiIntegrationTests extends ApiIntegrationTestBase {
     }
 
     @Test
-    @DisplayName("TEAM-M-10: OWNERのロールは変更できない")
-    void changeRoleRejectsOwnerMember() throws Exception {
+    @DisplayName("TEAM-R-04: OWNERのロールは変更できない")
+    void cannotChangeOwnerRole() throws Exception {
         TeamContext context = newTeamContext();
 
         updateMemberRole(context.ownerToken(), context.team().getId(), context.ownerMembership().getId(), TeamRole.MEMBER)
@@ -358,10 +388,10 @@ class TeamManagementApiIntegrationTests extends ApiIntegrationTestBase {
     void removeMemberAllowedForOwnerAndAdminOnly() throws Exception {
         TeamContext context = newTeamContext();
         User removableByOwner = createUser("Owner Remove", "owner-remove@example.com", "password123");
-        User removableByAdmin = createUser("Admin Remove", "admin-remove@example.com", "password123");
+        User removableAdmin = createUser("Admin Remove", "admin-remove@example.com", "password123");
         User blocked = createUser("Blocked Remove", "blocked-remove@example.com", "password123");
         TeamMember ownerTarget = addTeamMember(context.team(), removableByOwner, TeamRole.MEMBER);
-        TeamMember adminTarget = addTeamMember(context.team(), removableByAdmin, TeamRole.MEMBER);
+        TeamMember adminTarget = addTeamMember(context.team(), removableAdmin, TeamRole.ADMIN);
         TeamMember blockedTarget = addTeamMember(context.team(), blocked, TeamRole.MEMBER);
 
         removeMember(context.ownerToken(), context.team().getId(), ownerTarget.getId())
@@ -374,8 +404,8 @@ class TeamManagementApiIntegrationTests extends ApiIntegrationTestBase {
     }
 
     @Test
-    @DisplayName("TEAM-M-13: OWNERは削除できない")
-    void ownerDeletionProhibited() throws Exception {
+    @DisplayName("TEAM-D-03: OWNERは削除できない")
+    void cannotRemoveOwner() throws Exception {
         TeamContext context = newTeamContext();
 
         removeMember(context.ownerToken(), context.team().getId(), context.ownerMembership().getId())
@@ -384,8 +414,8 @@ class TeamManagementApiIntegrationTests extends ApiIntegrationTestBase {
     }
 
     @Test
-    @DisplayName("TEAM-M-15: 担当中タスクがあるメンバーは削除できない")
-    void memberWithActiveAssignedTaskCannotBeRemoved() throws Exception {
+    @DisplayName("TEAM-D-05: 担当中タスクがあるメンバーは削除できない")
+    void cannotRemoveMemberWithAssignedTasks() throws Exception {
         TeamContext context = newTeamContext();
         createTask("Assigned done task", context.owner(), context.member(), context.team(), TaskStatus.DONE, Priority.HIGH);
         assertEquals(1L, taskRepository.countActiveAssignmentsByTeamIdAndUserId(context.team().getId(), context.member().getId()));
@@ -468,6 +498,7 @@ class TeamManagementApiIntegrationTests extends ApiIntegrationTestBase {
         CapturedLog event = findRequiredEvent(auditAppender, "LOG-TEAM-003");
         assertEquals(context.member().getId(), event.payload().path("memberUserId").asLong());
         assertEquals("MEMBER", event.payload().path("previousRole").asText());
+        assertEquals("ADMIN", event.payload().path("targetRole").asText());
         assertEquals("ADMIN", event.payload().path("newRole").asText());
     }
 
