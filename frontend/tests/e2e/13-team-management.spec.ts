@@ -37,8 +37,36 @@ async function prepareTeamWithCandidate(page: Page, description = 'Member operat
   return { member, memberId, team }
 }
 
+async function openTeamDetailAsMember(page: Page, description = 'Member view') {
+  const owner = createE2eUser()
+  const member = createE2eUser()
+  const teamName = createTaskTitle('playwright-member-view')
+
+  await registerUser(page, member)
+  await registerAndLogin(page, owner)
+  const memberId = await getAssignableUserIdByEmail(page, member.email)
+  const team = await createTeamViaApi(page, teamName, description)
+  await addTeamMemberViaApi(page, Number(team.id), memberId, 'MEMBER')
+
+  await logout(page)
+  await loginUser(page, member)
+  await page.goto(`/teams/${team.id}`)
+
+  return { teamName, team, member }
+}
+
 async function routeAvailableUsersFailure(page: Page) {
   await page.route('**/api/teams/*/available-users', async (route) => {
+    await route.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ status: 500, errorCode: 'ERR-SYS-999', message: 'Internal Server Error' }),
+    })
+  })
+}
+
+async function routeTeamMembersFailure(page: Page) {
+  await page.route('**/api/teams/*/members', async (route) => {
     await route.fulfill({
       status: 500,
       contentType: 'application/json',
@@ -207,19 +235,7 @@ test('AUTH-TEAM-12: ADMINは自分自身をチームから外せる', async ({ p
 })
 
 test('TEAM-G-07: MEMBERには管理ボタンが表示されない', async ({ page }) => {
-  const owner = createE2eUser()
-  const member = createE2eUser()
-  const teamName = createTaskTitle('playwright-member-view')
-
-  await registerUser(page, member)
-  await registerAndLogin(page, owner)
-  const memberId = await getAssignableUserIdByEmail(page, member.email)
-  const team = await createTeamViaApi(page, teamName, 'Member view')
-  await addTeamMemberViaApi(page, Number(team.id), memberId, 'MEMBER')
-
-  await logout(page)
-  await loginUser(page, member)
-  await page.goto(`/teams/${team.id}`)
+  const { teamName } = await openTeamDetailAsMember(page)
 
   await expect(page.getByRole('heading', { name: teamName })).toBeVisible()
   await expect(page.getByRole('button', { name: 'メンバーを追加' })).toHaveCount(0)
@@ -228,7 +244,53 @@ test('TEAM-G-07: MEMBERには管理ボタンが表示されない', async ({ pag
   await expect(page.getByRole('button', { name: 'このチームのタスクを見る' })).toBeVisible()
 })
 
-test('TEAM-G-08: 候補取得失敗時もチーム詳細は表示継続する', async ({ page }) => {
+test('UI-TEAM-01: MEMBERにはメンバー追加ボタンが表示されない', async ({ page }) => {
+  await openTeamDetailAsMember(page, 'Member add button visibility')
+
+  await expect(page.getByRole('button', { name: 'メンバーを追加' })).toHaveCount(0)
+})
+
+test('UI-TEAM-02: MEMBERにはロール変更ボタンが表示されない', async ({ page }) => {
+  await openTeamDetailAsMember(page, 'Role button visibility')
+
+  await expect(page.getByRole('button', { name: 'ロール変更' })).toHaveCount(0)
+})
+
+test('UI-TEAM-03: MEMBERにはメンバー削除ボタンが表示されない', async ({ page }) => {
+  await openTeamDetailAsMember(page, 'Remove button visibility')
+
+  await expect(page.getByRole('button', { name: '削除' })).toHaveCount(0)
+})
+
+test('TEAM-G-08: メンバー一覧取得失敗時もチーム詳細は表示継続する', async ({ page }) => {
+  const user = createE2eUser()
+  const teamName = createTaskTitle('playwright-members-failure')
+
+  await registerAndLogin(page, user)
+  const team = await createTeamViaApi(page, teamName, 'Members failure')
+  await routeTeamMembersFailure(page)
+
+  await page.goto(`/teams/${team.id}`)
+
+  await expect(page.getByRole('heading', { name: teamName })).toBeVisible()
+})
+
+test('TEAM-G-09: メンバー一覧取得失敗時は部分エラーと再読み込み導線を表示する', async ({ page }) => {
+  const user = createE2eUser()
+  const teamName = createTaskTitle('playwright-members-message')
+
+  await registerAndLogin(page, user)
+  const team = await createTeamViaApi(page, teamName, 'Members failure message')
+  await routeTeamMembersFailure(page)
+
+  await page.goto(`/teams/${team.id}`)
+
+  const memberListError = page.locator('.member-list-error')
+  await expect(memberListError.getByText('メンバー一覧の取得に失敗しました。再読み込みしてください')).toBeVisible()
+  await expect(memberListError.getByRole('button', { name: '再読み込み' })).toBeVisible()
+})
+
+test('TEAM-U-10: 候補取得失敗時は追加確定できず再試行導線を表示する', async ({ page }) => {
   const user = createE2eUser()
   const teamName = createTaskTitle('playwright-available-failure')
 
@@ -239,20 +301,8 @@ test('TEAM-G-08: 候補取得失敗時もチーム詳細は表示継続する', 
   await page.goto(`/teams/${team.id}`)
   await page.getByRole('button', { name: 'メンバーを追加' }).click()
 
-  await expect(page.getByRole('heading', { name: teamName })).toBeVisible()
-})
-
-test('TEAM-G-09: 候補取得失敗時はメンバー追加エリアにエラーと再読み込み導線を表示する', async ({ page }) => {
-  const user = createE2eUser()
-  const teamName = createTaskTitle('playwright-available-message')
-
-  await registerAndLogin(page, user)
-  const team = await createTeamViaApi(page, teamName, 'Available failure message')
-  await routeAvailableUsersFailure(page)
-
-  await page.goto(`/teams/${team.id}`)
-  await page.getByRole('button', { name: 'メンバーを追加' }).click()
-
-  await expect(page.getByText('システムエラーが発生しました。しばらくしてから再度お試しください。')).toBeVisible()
-  await expect(page.getByRole('dialog').getByRole('button', { name: '再読み込み' })).toBeVisible()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByText('システムエラーが発生しました。しばらくしてから再度お試しください。')).toBeVisible()
+  await expect(dialog.getByRole('button', { name: '再読み込み' })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: '追加する' })).toBeDisabled()
 })
