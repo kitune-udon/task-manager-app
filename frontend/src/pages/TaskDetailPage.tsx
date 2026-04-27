@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, type ChangeEvent, type FormEvent } from 're
 import type { TaskAttachment } from '../lib/attachmentApi'
 import type { TaskComment } from '../lib/commentApi'
 import type { TaskPriority, TaskStatus, TaskItem } from '../lib/taskApi'
+import type { TeamRole } from '../types/team'
 import type { AssigneeOption, TaskFormBindings } from '../hooks/taskStateShared'
 import type { DetailTab } from '../hooks/useTaskDetailState'
 import { useTaskActivitiesState } from '../hooks/useTaskActivitiesState'
@@ -22,6 +23,7 @@ type Props = {
   activePath: string
   currentUserLabel: string
   currentUserId: number | null
+  currentTeamRole: TeamRole | null
   unreadCount: number
   onRefreshUnreadCount: () => Promise<void>
   onNavigate: (path: string) => void
@@ -89,6 +91,30 @@ function canManageOwnResource(currentUserId: number | null, ownerId?: number | s
   return Number(ownerId) === currentUserId
 }
 
+function hasTeamManagerRole(currentTeamRole: TeamRole | null) {
+  return currentTeamRole === 'OWNER' || currentTeamRole === 'ADMIN'
+}
+
+function canManageTeamScopedResource(
+  currentUserId: number | null,
+  ownerId: number | string | null | undefined,
+  currentTeamRole: TeamRole | null,
+) {
+  return canManageOwnResource(currentUserId, ownerId) || hasTeamManagerRole(currentTeamRole)
+}
+
+function canUpdateTask(currentUserId: number | null, task: TaskItem, currentTeamRole: TeamRole | null) {
+  return (
+    canManageOwnResource(currentUserId, task.createdBy?.id ?? task.createdById) ||
+    canManageOwnResource(currentUserId, task.assignedUser?.id ?? task.assignedUserId) ||
+    hasTeamManagerRole(currentTeamRole)
+  )
+}
+
+function canDeleteTask(currentUserId: number | null, task: TaskItem, currentTeamRole: TeamRole | null) {
+  return canManageTeamScopedResource(currentUserId, task.createdBy?.id ?? task.createdById, currentTeamRole)
+}
+
 /**
  * コメント投稿者などを表す共通ユーザーアイコン。
  */
@@ -120,6 +146,7 @@ export function TaskDetailPage({
   activePath,
   currentUserLabel,
   currentUserId,
+  currentTeamRole,
   unreadCount,
   onRefreshUnreadCount,
   onNavigate,
@@ -166,6 +193,9 @@ export function TaskDetailPage({
     onReloadActivities: activitiesState.loadActivities,
     onRefreshUnreadCount,
   })
+  const canUpdateSelectedTask = selectedTask ? canUpdateTask(currentUserId, selectedTask, currentTeamRole) : false
+  const canDeleteSelectedTask = selectedTask ? canDeleteTask(currentUserId, selectedTask, currentTeamRole) : false
+  const isEditModeAvailable = isEditing && canUpdateSelectedTask
 
   useEffect(() => {
     if (fileInputRef.current) {
@@ -241,12 +271,14 @@ export function TaskDetailPage({
         <button className="secondary-button" onClick={onShowList} type="button">
           一覧へ戻る
         </button>
-        {!selectedTask ? null : !isEditing ? (
+        {!selectedTask ? null : !isEditModeAvailable ? (
           <>
-            <button className="secondary-button" onClick={onStartEdit} type="button">
-              編集
-            </button>
-            {canManageOwnResource(currentUserId, selectedTask.createdBy?.id) ? (
+            {canUpdateSelectedTask ? (
+              <button className="secondary-button" onClick={onStartEdit} type="button">
+                編集
+              </button>
+            ) : null}
+            {canDeleteSelectedTask ? (
               <button className="primary-button danger-button" disabled={isDeleting} onClick={onDelete} type="button">
                 {isDeleting ? '削除中...' : '削除'}
               </button>
@@ -264,7 +296,18 @@ export function TaskDetailPage({
         )}
       </>
     ),
-    [currentUserId, isDeleting, isEditing, isSubmitting, onCancelEdit, onDelete, onShowList, onStartEdit, selectedTask],
+    [
+      canDeleteSelectedTask,
+      canUpdateSelectedTask,
+      isDeleting,
+      isEditModeAvailable,
+      isSubmitting,
+      onCancelEdit,
+      onDelete,
+      onShowList,
+      onStartEdit,
+      selectedTask,
+    ],
   )
 
   return (
@@ -300,7 +343,7 @@ export function TaskDetailPage({
       }
     >
       {/* サイドバーの保存ボタンから送信できるよう、編集時は画面上部に共有formを置く。 */}
-      {isEditing ? <form id={DETAIL_FORM_ID} onSubmit={onEditSubmit} /> : null}
+      {isEditModeAvailable ? <form id={DETAIL_FORM_ID} onSubmit={onEditSubmit} /> : null}
       {detailErrorMessage ? <div className="status-box error-box">{detailErrorMessage}</div> : null}
       {successMessage ? <div className="status-box success-box">{successMessage}</div> : null}
 
@@ -327,7 +370,7 @@ export function TaskDetailPage({
                 <div className="task-detail-body-grid">
                   <label className="detail-field-stack">
                     <span className="summary-label">タイトル</span>
-                    {isEditing ? (
+                    {isEditModeAvailable ? (
                       <>
                         <input
                           className={editForm.fieldErrors.title ? 'input-error' : ''}
@@ -345,7 +388,7 @@ export function TaskDetailPage({
 
                   <label className="detail-field-stack">
                     <span className="summary-label">説明</span>
-                    {isEditing ? (
+                    {isEditModeAvailable ? (
                       <>
                         <textarea
                           className={editForm.fieldErrors.description ? 'input-error' : ''}
@@ -368,22 +411,24 @@ export function TaskDetailPage({
               <section className="task-detail-section">
                 <div className="task-detail-section-header">
                   <h3 className="task-detail-section-title">添付ファイル</h3>
-                  <div className="attachment-toolbar">
-                    <input
-                      hidden
-                      onChange={handleAttachmentSelectionChange}
-                      ref={fileInputRef}
-                      type="file"
-                    />
-                    <button
-                      className="secondary-button"
-                      disabled={attachmentsState.isUploadingAttachment}
-                      onClick={handleAttachmentButtonClick}
-                      type="button"
-                    >
-                      {attachmentsState.isUploadingAttachment ? 'アップロード中...' : '添付'}
-                    </button>
-                  </div>
+                  {canUpdateSelectedTask ? (
+                    <div className="attachment-toolbar">
+                      <input
+                        hidden
+                        onChange={handleAttachmentSelectionChange}
+                        ref={fileInputRef}
+                        type="file"
+                      />
+                      <button
+                        className="secondary-button"
+                        disabled={attachmentsState.isUploadingAttachment}
+                        onClick={handleAttachmentButtonClick}
+                        type="button"
+                      >
+                        {attachmentsState.isUploadingAttachment ? 'アップロード中...' : '添付'}
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
                 {attachmentsState.attachmentErrorMessage ? (
                   <div className="status-box error-box">{attachmentsState.attachmentErrorMessage}</div>
@@ -396,7 +441,7 @@ export function TaskDetailPage({
                 ) : (
                   <div className="attachment-list">
                     {attachmentsState.attachments.map((attachment) => {
-                      const canDelete = canManageOwnResource(currentUserId, attachment.uploadedBy?.id)
+                      const canDelete = canManageTeamScopedResource(currentUserId, attachment.uploadedBy?.id, currentTeamRole)
                       const isActiveAttachment = attachmentsState.activeAttachmentId === attachment.id
 
                       return (
@@ -534,7 +579,7 @@ export function TaskDetailPage({
                     ) : (
                       <div className="stack-list activity-stack-list">
                         {commentsState.comments.map((comment) => {
-                          const canManage = canManageOwnResource(currentUserId, comment.createdBy?.id)
+                          const canManage = canManageTeamScopedResource(currentUserId, comment.createdBy?.id, currentTeamRole)
                           const isEditingComment = commentsState.editingCommentId === comment.id
                           const isActiveComment = commentsState.activeCommentId === comment.id
                           const isOwnComment = canManageOwnResource(currentUserId, comment.createdBy?.id)
@@ -689,7 +734,7 @@ export function TaskDetailPage({
 
                 <label className="task-detail-side-item">
                   <span className="summary-label">ステータス</span>
-                  {isEditing ? (
+                  {isEditModeAvailable ? (
                     <>
                       <select
                         className={editForm.fieldErrors.status ? 'input-error' : ''}
@@ -712,7 +757,7 @@ export function TaskDetailPage({
 
                 <label className="task-detail-side-item">
                   <span className="summary-label">優先度</span>
-                  {isEditing ? (
+                  {isEditModeAvailable ? (
                     <>
                       <select
                         className={editForm.fieldErrors.priority ? 'input-error' : ''}
@@ -737,7 +782,7 @@ export function TaskDetailPage({
 
                 <label className="task-detail-side-item">
                   <span className="summary-label">担当者</span>
-                  {isEditing ? (
+                  {isEditModeAvailable ? (
                     <>
                       <select
                         className={editForm.fieldErrors.assignedUserId ? 'input-error' : ''}
@@ -770,7 +815,7 @@ export function TaskDetailPage({
 
                 <label className="task-detail-side-item">
                   <span className="summary-label">期限</span>
-                  {isEditing ? (
+                  {isEditModeAvailable ? (
                     <>
                       <input
                         className={editForm.fieldErrors.dueDate ? 'input-error' : ''}

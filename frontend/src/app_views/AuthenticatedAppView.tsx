@@ -59,6 +59,11 @@ export function AuthenticatedAppView({
   const contextTeam = contextTeamId
     ? teamState.list.teams.find((team) => String(team.id) === String(contextTeamId)) ?? null
     : null
+  const selectedTaskTeamId = detail.selectedTask?.teamId ?? null
+  const selectedTaskTeam = selectedTaskTeamId
+    ? teamState.list.teams.find((team) => String(team.id) === String(selectedTaskTeamId)) ?? null
+    : null
+  const selectedTaskTeamRole = selectedTaskTeam?.myRole ?? null
   const isTeamContextReady = Boolean(contextTeamId) && !teamState.list.isLoadingTeams && Boolean(contextTeam)
 
   useEffect(() => {
@@ -113,6 +118,7 @@ export function AuthenticatedAppView({
           activePath={activePath}
           currentUserLabel={currentUserLabel}
           currentUserId={currentUserId}
+          currentTeamRole={selectedTaskTeamRole}
           onNavigate={onNavigate}
           onLogout={onLogout}
           unreadCount={notificationState.unreadCount}
