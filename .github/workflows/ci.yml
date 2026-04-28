@@ -83,11 +83,33 @@ jobs:
         run: ./gradlew bootJar --no-daemon
 
   # frontend 側の CI
-  # - npm install と build が通ることを確認する
-  # - 本番配備前に Vite / TypeScript の破綻を早めに検知する
+  # - npm install、E2E test、build が通ることを確認する
+  # - 本番配備前に UI / API 連携と Vite / TypeScript の破綻を早めに検知する
   frontend-ci:
-    name: frontend build
+    name: frontend test and build
     runs-on: ubuntu-latest
+
+    # Playwright E2E は backend bootRun も起動するため、
+    # CI 上でも backend-ci と同等の PostgreSQL を service container で用意する。
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: taskdb
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d taskdb"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_URL: jdbc:postgresql://localhost:5432/taskdb
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
 
     # frontend 配下で npm コマンドを実行するため、working-directory を固定する
     defaults:
@@ -108,9 +130,31 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      # E2E テストでは Playwright が backend を起動するため、Java 17 もセットアップする
+      # Gradle キャッシュを使い、backend bootRun の準備時間を短縮する
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
       # lockfile ベースで依存関係を再現性高くインストールする
       - name: Install dependencies
         run: npm ci
+
+      # GitHub Actions runner で Playwright の Chrome 実行環境を用意する
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chrome
+
+      # Playwright が ../backend/gradlew bootRun を起動できるようにする
+      - name: Grant execute permission for backend gradlew
+        run: chmod +x ../backend/gradlew
+
+      # frontend の E2E テストを実行する
+      # playwright.config.ts の webServer 設定で backend と Vite dev server も起動する
+      - name: Run E2E tests
+        run: npm run test:e2e
 
       # TypeScript compile + Vite build を実行し、配備可能な dist が作れることを確認する
       - name: Run build
