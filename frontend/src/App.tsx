@@ -8,6 +8,7 @@ import {
 import { useAuthState } from './hooks/useAuthState'
 import { useNotificationState } from './hooks/useNotificationState'
 import { useRouteState } from './hooks/useRouteState'
+import { useTeamState } from './hooks/useTeamState'
 import { useTaskState } from './hooks/useTaskState'
 import { AuthenticatedAppView } from './app_views/AuthenticatedAppView'
 import { UnauthenticatedAppView } from './app_views/UnauthenticatedAppView'
@@ -31,10 +32,22 @@ function App() {
   const tasks = useTaskState({
     isLoggedIn: auth.isLoggedIn,
     selectedTaskId: navigation.selectedTaskId,
+    routeTeamId: navigation.taskTeamId,
+    routeFrom: navigation.routeFrom,
+    routeMode: navigation.taskMode,
     go: navigation.go,
     resetMessages: auth.actions.resetMessages,
     setGlobalSuccessMessage: auth.actions.setSuccessMessage,
     refreshUnreadCount: notifications.actions.loadUnreadCount,
+  })
+
+  const teams = useTeamState({
+    isLoggedIn: auth.isLoggedIn,
+    selectedTeamId: navigation.selectedTeamId,
+    currentUserId: auth.currentUserId,
+    go: navigation.go,
+    resetMessages: auth.actions.resetMessages,
+    setGlobalSuccessMessage: auth.actions.setSuccessMessage,
   })
 
   /**
@@ -42,6 +55,7 @@ function App() {
    */
   const handleLogout = () => {
     tasks.actions.clearTaskStateOnLogout()
+    teams.actions.clearTeamStateOnLogout()
     notifications.actions.clearNotificationState()
     auth.actions.handleLogout()
   }
@@ -70,6 +84,7 @@ function App() {
       onNavigate={navigation.go}
       onLogout={handleLogout}
       taskState={tasks}
+      teamState={teams}
       notificationState={notifications}
       statusOptions={STATUS_OPTIONS}
       priorityOptions={PRIORITY_OPTIONS}

@@ -1,11 +1,14 @@
 package com.example.task.repository;
 
 import com.example.task.entity.TaskAttachment;
+import com.example.task.entity.User;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -68,4 +71,26 @@ public interface TaskAttachmentRepository extends JpaRepository<TaskAttachment, 
               and a.deletedAt is null
             """)
     long sumActiveFileSizeByTaskId(@Param("taskId") Long taskId);
+
+    /**
+     * 指定タスクに紐づく未削除添付メタ情報をまとめて論理削除する。
+     *
+     * @param taskId タスクID
+     * @param deletedAt 削除日時
+     * @param deletedBy 削除者
+     * @return 更新件数
+     */
+    @Modifying
+    @Query("""
+            update TaskAttachment a
+            set a.deletedAt = :deletedAt,
+                a.deletedBy = :deletedBy
+            where a.task.id = :taskId
+              and a.deletedAt is null
+            """)
+    int softDeleteActiveByTaskId(
+            @Param("taskId") Long taskId,
+            @Param("deletedAt") LocalDateTime deletedAt,
+            @Param("deletedBy") User deletedBy
+    );
 }

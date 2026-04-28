@@ -12,6 +12,7 @@ type Props = {
   currentUserLabel: string
   unreadCount?: number
   actions?: ReactNode
+  preHeader?: ReactNode
   contentAreaClassName?: string
   contentBodyClassName?: string
   children: ReactNode
@@ -29,6 +30,7 @@ export function TaskShell({
   currentUserLabel,
   unreadCount = 0,
   actions,
+  preHeader,
   contentAreaClassName,
   contentBodyClassName,
   children,
@@ -36,9 +38,9 @@ export function TaskShell({
   // サイドバーの未読バッジは幅が崩れないよう、3桁以上を99+に丸める。
   const unreadBadgeLabel = unreadCount > 99 ? '99+' : unreadCount > 0 ? unreadCount : null
   const navItems = [
-    { label: 'タスク一覧', path: '/tasks' },
-    { label: 'タスク作成', path: '/tasks/new' },
-    { label: '通知', path: '/notifications', badge: unreadBadgeLabel },
+    { label: 'チーム', path: '/teams', iconClassName: 'nav-icon-team' },
+    { label: 'タスク一覧', path: '/tasks', iconClassName: 'nav-icon-task' },
+    { label: '通知', path: '/notifications', iconClassName: 'nav-icon-notification', badge: unreadBadgeLabel },
   ]
 
   return (
@@ -65,7 +67,10 @@ export function TaskShell({
               onClick={() => onNavigate(item.path)}
               type="button"
             >
-              <span>{item.label}</span>
+              <span className="sidebar-link-label">
+                <span className={`nav-icon ${item.iconClassName}`} aria-hidden="true" />
+                <span>{item.label}</span>
+              </span>
               {item.badge ? <span className="nav-badge">{item.badge}</span> : null}
             </button>
           ))}
@@ -73,6 +78,7 @@ export function TaskShell({
       </aside>
 
       <section className={contentAreaClassName ? `content-area ${contentAreaClassName}` : 'content-area'}>
+        {preHeader ? <div className="workspace-pre-header">{preHeader}</div> : null}
         <header className="content-header">
           <div>
             <h1>{title}</h1>

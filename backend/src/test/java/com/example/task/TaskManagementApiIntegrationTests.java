@@ -3,6 +3,8 @@ package com.example.task;
 import com.example.task.entity.Priority;
 import com.example.task.entity.Task;
 import com.example.task.entity.TaskStatus;
+import com.example.task.entity.Team;
+import com.example.task.entity.TeamRole;
 import com.example.task.entity.User;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.DisplayName;
@@ -38,10 +40,11 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
         User requester = createUser("Requester", "requester@example.com", "password123");
         User creator = createUser("Creator", "creator@example.com", "password123");
         User outsider = createUser("Outsider", "outsider@example.com", "password123");
+        User hiddenCreator = createUser("Hidden Creator", "hidden-creator@example.com", "password123");
 
         createTask("Owned Task", requester, null, TaskStatus.TODO, Priority.HIGH);
         createTask("Assigned Task", creator, requester, TaskStatus.DOING, Priority.MEDIUM);
-        createTask("Hidden Task", creator, outsider, TaskStatus.DONE, Priority.LOW);
+        createTask("Hidden Task", hiddenCreator, outsider, TaskStatus.DONE, Priority.LOW);
 
         String token = loginAndGetToken("requester@example.com", "password123");
 
@@ -120,7 +123,9 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
     @DisplayName("TSK-C-01: 必須項目を満たすとタスク作成できる")
     void createTaskSucceeds() throws Exception {
         User assignee = createUser("Assignee", "assignee@example.com", "password123");
-        createUser("Creator", "creator@example.com", "password123");
+        User creator = createUser("Creator", "creator@example.com", "password123");
+        Team team = createTeamWithMember(creator, "Creator Team", TeamRole.OWNER);
+        addTeamMember(team, assignee, TeamRole.MEMBER);
         String token = loginAndGetToken("creator@example.com", "password123");
 
         mockMvc.perform(post("/api/tasks")
@@ -132,7 +137,8 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
                                 "TODO",
                                 "HIGH",
                                 assignee.getId(),
-                                null
+                                null,
+                                team.getId()
                         ))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.title").value("Initial Task"))
@@ -145,7 +151,8 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
     @Test
     @DisplayName("TSK-C-03: タスク作成のタイトル必須エラーで ERR-TASK-001 を返す")
     void createTaskValidationFails() throws Exception {
-        createUser("Creator", "creator@example.com", "password123");
+        User creator = createUser("Creator", "creator@example.com", "password123");
+        Team team = createTeamWithMember(creator, "Creator Team", TeamRole.OWNER);
         String token = loginAndGetToken("creator@example.com", "password123");
 
         mockMvc.perform(post("/api/tasks")
@@ -154,7 +161,8 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
                         .content(asJson(Map.of(
                                 "title", "",
                                 "status", "TODO",
-                                "priority", "HIGH"
+                                "priority", "HIGH",
+                                "teamId", team.getId()
                         ))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("ERR-TASK-001"))
@@ -164,7 +172,8 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
     @Test
     @DisplayName("TSK-C-04: タイトルが101文字以上の作成は ERR-TASK-001 を返す")
     void createTaskRejectsTitleLongerThan100Chars() throws Exception {
-        createUser("Creator", "creator@example.com", "password123");
+        User creator = createUser("Creator", "creator@example.com", "password123");
+        Team team = createTeamWithMember(creator, "Creator Team", TeamRole.OWNER);
         String token = loginAndGetToken("creator@example.com", "password123");
 
         mockMvc.perform(post("/api/tasks")
@@ -174,7 +183,8 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
                                 "title", "a".repeat(101),
                                 "description", "Too long",
                                 "status", "TODO",
-                                "priority", "HIGH"
+                                "priority", "HIGH",
+                                "teamId", team.getId()
                         ))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("ERR-TASK-001"))
@@ -184,7 +194,8 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
     @Test
     @DisplayName("TSK-C-05: 説明が5001文字以上の作成は ERR-INPUT-001 を返す")
     void createTaskRejectsDescriptionLongerThan5000Chars() throws Exception {
-        createUser("Creator", "creator@example.com", "password123");
+        User creator = createUser("Creator", "creator@example.com", "password123");
+        Team team = createTeamWithMember(creator, "Creator Team", TeamRole.OWNER);
         String token = loginAndGetToken("creator@example.com", "password123");
 
         mockMvc.perform(post("/api/tasks")
@@ -194,7 +205,8 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
                                 "title", "Description too long",
                                 "description", "a".repeat(5001),
                                 "status", "TODO",
-                                "priority", "HIGH"
+                                "priority", "HIGH",
+                                "teamId", team.getId()
                         ))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("ERR-INPUT-001"))
@@ -204,7 +216,8 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
     @Test
     @DisplayName("TSK-C-06: 不正なステータス値では ERR-TASK-002 を返す")
     void createTaskRejectsInvalidStatus() throws Exception {
-        createUser("Creator", "creator@example.com", "password123");
+        User creator = createUser("Creator", "creator@example.com", "password123");
+        Team team = createTeamWithMember(creator, "Creator Team", TeamRole.OWNER);
         String token = loginAndGetToken("creator@example.com", "password123");
 
         mockMvc.perform(post("/api/tasks")
@@ -214,9 +227,10 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
                                 {
                                   "title": "Invalid status",
                                   "status": "BLOCKED",
-                                  "priority": "HIGH"
+                                  "priority": "HIGH",
+                                  "teamId": %d
                                 }
-                                """))
+                                """.formatted(team.getId())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("ERR-TASK-002"))
                 .andExpect(jsonPath("$.details[*].field", hasItems("status")));
@@ -225,7 +239,8 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
     @Test
     @DisplayName("TSK-C-07: 不正な優先度値では ERR-INPUT-001 を返す")
     void createTaskRejectsInvalidPriority() throws Exception {
-        createUser("Creator", "creator@example.com", "password123");
+        User creator = createUser("Creator", "creator@example.com", "password123");
+        Team team = createTeamWithMember(creator, "Creator Team", TeamRole.OWNER);
         String token = loginAndGetToken("creator@example.com", "password123");
 
         mockMvc.perform(post("/api/tasks")
@@ -235,9 +250,10 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
                                 {
                                   "title": "Invalid priority",
                                   "status": "TODO",
-                                  "priority": "URGENT"
+                                  "priority": "URGENT",
+                                  "teamId": %d
                                 }
-                                """))
+                                """.formatted(team.getId())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("ERR-INPUT-001"))
                 .andExpect(jsonPath("$.details[*].field", hasItems("priority")));
@@ -246,7 +262,8 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
     @Test
     @DisplayName("TSK-C-08: 不存在の assignedUserId では ERR-USR-002 を返す")
     void createTaskRejectsMissingAssignee() throws Exception {
-        createUser("Creator", "creator@example.com", "password123");
+        User creator = createUser("Creator", "creator@example.com", "password123");
+        Team team = createTeamWithMember(creator, "Creator Team", TeamRole.OWNER);
         String token = loginAndGetToken("creator@example.com", "password123");
 
         mockMvc.perform(post("/api/tasks")
@@ -256,7 +273,8 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
                                 "title", "Missing assignee",
                                 "status", "TODO",
                                 "priority", "HIGH",
-                                "assignedUserId", 999999L
+                                "assignedUserId", 999999L,
+                                "teamId", team.getId()
                         ))))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("ERR-USR-002"));
@@ -265,7 +283,8 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
     @Test
     @DisplayName("TSK-C-09: 作成成功時に TASK_CREATED が記録される")
     void createTaskRecordsActivityLog() throws Exception {
-        createUser("Creator", "creator@example.com", "password123");
+        User creator = createUser("Creator", "creator@example.com", "password123");
+        Team team = createTeamWithMember(creator, "Creator Team", TeamRole.OWNER);
         String token = loginAndGetToken("creator@example.com", "password123");
 
         Long taskId = createTaskAndGetId(token, taskPayload(
@@ -274,7 +293,8 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
                 "TODO",
                 "HIGH",
                 null,
-                null
+                null,
+                team.getId()
         ));
 
         mockMvc.perform(get("/api/tasks/{taskId}/activities", taskId)
@@ -286,7 +306,8 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
     @Test
     @DisplayName("ACT-01: タスク作成時に TASK_CREATED が記録される")
     void taskCreateActivityLogIsRecorded() throws Exception {
-        createUser("Creator", "creator@example.com", "password123");
+        User creator = createUser("Creator", "creator@example.com", "password123");
+        Team team = createTeamWithMember(creator, "Creator Team", TeamRole.OWNER);
         String token = loginAndGetToken("creator@example.com", "password123");
 
         Long taskId = createTaskAndGetId(token, taskPayload(
@@ -295,7 +316,8 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
                 "TODO",
                 "HIGH",
                 null,
-                null
+                null,
+                team.getId()
         ));
 
         mockMvc.perform(get("/api/tasks/{taskId}/activities", taskId)
@@ -350,7 +372,7 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
     }
 
     @Test
-    @DisplayName("TSK-G-06: 他人タスクの詳細参照は ERR-AUTH-005 を返す")
+    @DisplayName("TSK-G-06: 非所属チームのタスク詳細参照は ERR-TASK-009 を返す")
     void viewForbiddenTaskReturnsAuth005() throws Exception {
         User creator = createUser("Creator", "creator@example.com", "password123");
         createUser("Outsider", "outsider@example.com", "password123");
@@ -361,7 +383,7 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
         mockMvc.perform(get("/api/tasks/{taskId}", hiddenTask.getId())
                         .header("Authorization", bearer(token)))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("ERR-AUTH-005"));
+                .andExpect(jsonPath("$.errorCode").value("ERR-TASK-009"));
     }
 
     @Test
@@ -529,7 +551,7 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
     }
 
     @Test
-    @DisplayName("AUTH-02: 他人タスクの更新は ERR-TASK-005 を返す")
+    @DisplayName("AUTH-02: 非所属チームのタスク更新は ERR-TASK-009 を返す")
     void updateForbiddenTaskReturnsTaskPermissionCode() throws Exception {
         User creator = createUser("Creator", "creator@example.com", "password123");
         createUser("Outsider", "outsider@example.com", "password123");
@@ -549,7 +571,7 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
                                 hiddenTask.getVersion()
                         ))))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("ERR-TASK-005"));
+                .andExpect(jsonPath("$.errorCode").value("ERR-TASK-009"));
     }
 
     @Test
@@ -694,7 +716,7 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
     }
 
     @Test
-    @DisplayName("AUTH-03: 他人タスクの削除は ERR-TASK-006 を返す")
+    @DisplayName("AUTH-03: 非所属チームのタスク削除は ERR-TASK-009 を返す")
     void deleteForbiddenTaskReturnsTaskPermissionCode() throws Exception {
         User creator = createUser("Creator", "creator@example.com", "password123");
         createUser("Outsider", "outsider@example.com", "password123");
@@ -703,9 +725,9 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
         String token = loginAndGetToken("outsider@example.com", "password123");
 
         mockMvc.perform(delete("/api/tasks/{taskId}", hiddenTask.getId())
-                        .header("Authorization", bearer(token)))
+                .header("Authorization", bearer(token)))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("ERR-TASK-006"));
+                .andExpect(jsonPath("$.errorCode").value("ERR-TASK-009"));
     }
 
     private void updateTask(String token, Long taskId, Long version) throws Exception {
@@ -748,6 +770,22 @@ class TaskManagementApiIntegrationTests extends ApiIntegrationTestBase {
         }
         if (version != null) {
             payload.put("version", version);
+        }
+        return payload;
+    }
+
+    private Map<String, Object> taskPayload(
+            String title,
+            String description,
+            String status,
+            String priority,
+            Long assignedUserId,
+            Long version,
+            Long teamId
+    ) {
+        Map<String, Object> payload = taskPayload(title, description, status, priority, assignedUserId, version);
+        if (teamId != null) {
+            payload.put("teamId", teamId);
         }
         return payload;
     }

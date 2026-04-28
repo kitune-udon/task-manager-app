@@ -22,6 +22,8 @@ public class TaskResponse {
     private LocalDate dueDate;
     private TaskUserResponse assignedUser;
     private TaskUserResponse createdBy;
+    private Long teamId;
+    private String teamName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Long version;

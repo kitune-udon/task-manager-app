@@ -1,0 +1,2 @@
+ALTER TABLE tasks
+ADD COLUMN team_id BIGINT;

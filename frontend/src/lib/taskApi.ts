@@ -27,6 +27,8 @@ export type TaskItem = {
   id: number | string
   title: string
   description?: string | null
+  teamId?: number | string | null
+  teamName?: string | null
   status?: TaskStatus
   priority?: TaskPriority
   dueDate?: string | null
@@ -51,15 +53,28 @@ export type CreateTaskRequest = {
   priority: TaskPriority
   dueDate?: string
   assignedUserId?: number
-  teamId?: number
+  teamId: number
 }
 
 /**
  * タスク更新APIへ送るリクエスト。
  */
-export type UpdateTaskRequest = CreateTaskRequest & {
+export type UpdateTaskRequest = {
+  title: string
+  description?: string
+  status: TaskStatus
+  priority: TaskPriority
+  dueDate?: string
+  assignedUserId?: number
   /** 楽観ロックの競合検知に使う現在バージョン。 */
   version: number
+}
+
+/**
+ * タスク一覧取得時の絞り込み条件。
+ */
+export type FetchTasksOptions = {
+  teamId?: number | string | null
 }
 
 /**
@@ -95,8 +110,12 @@ function normalizeTask(raw: TaskItem): TaskItem {
 /**
  * ログインユーザーが参照可能なタスク一覧を取得する。
  */
-export async function fetchTasks(): Promise<TaskItem[]> {
-  const response = await apiClient.get<TaskItem[]>('/api/tasks')
+export async function fetchTasks(options: FetchTasksOptions = {}): Promise<TaskItem[]> {
+  const params =
+    options.teamId !== undefined && options.teamId !== null && String(options.teamId).trim() !== ''
+      ? { teamId: options.teamId }
+      : undefined
+  const response = await apiClient.get<TaskItem[]>('/api/tasks', { params })
   const data = unwrapApiData(response.data)
 
   if (!Array.isArray(data)) {

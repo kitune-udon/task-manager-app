@@ -14,6 +14,9 @@ import {
  * タスク作成・更新・削除hookが必要とする選択中タスク、関連状態更新、画面遷移操作。
  */
 type Params = {
+  taskTeamId: string | null
+  taskListPath: string
+  taskDetailPath: string | null
   selectedTaskId: string | null
   selectedTask: TaskItem | null
   assigneeOptions: AssigneeOption[]
@@ -39,14 +42,28 @@ function toTaskRequestPayload(form: TaskFormState) {
     priority: form.priority,
     dueDate: form.dueDate || undefined,
     assignedUserId: form.assignedUserId ? Number(form.assignedUserId) : undefined,
-    teamId: undefined,
   }
+}
+
+/**
+ * URLクエリで保持しているteamIdをAPIへ送れる数値へ変換する。
+ */
+function parseTeamId(value: string | null) {
+  if (!value) {
+    return null
+  }
+
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 /**
  * タスクの作成フォーム、編集フォーム、削除処理と送信状態を管理する。
  */
 export function useTaskMutationState({
+  taskTeamId,
+  taskListPath,
+  taskDetailPath,
   selectedTaskId,
   selectedTask,
   assigneeOptions,
@@ -109,13 +126,22 @@ export function useTaskMutationState({
 
     setIsSubmittingTask(true)
     try {
-      await createTask(toTaskRequestPayload(createForm))
+      const parsedTeamId = parseTeamId(taskTeamId)
+      if (parsedTeamId === null) {
+        setCreateErrorMessage('タスクを作成するチームを選択してください')
+        return
+      }
+
+      await createTask({
+        ...toTaskRequestPayload(createForm),
+        teamId: parsedTeamId,
+      })
       setCreateForm(defaultTaskForm)
       setCreateFieldErrors({})
       await loadTasks()
       setSelectedTask(null)
       // 作成後は一覧で新しいタスクを確認できるようにする。
-      go('/tasks')
+      go(taskListPath)
       setGlobalSuccessMessage('タスクを作成しました。')
     } catch (error) {
       const apiFieldErrors = extractFieldErrorsFromApiError(error)
@@ -163,6 +189,9 @@ export function useTaskMutationState({
       setSelectedTask(updatedTask)
       setEditFieldErrors({})
       await Promise.all([loadTasks(), refreshUnreadCount()])
+      if (taskDetailPath) {
+        go(taskDetailPath, true)
+      }
       stopEditing()
       setGlobalSuccessMessage('タスクを更新しました。')
     } catch (error) {
@@ -204,7 +233,7 @@ export function useTaskMutationState({
       await deleteTask(selectedTaskId)
       setSelectedTask(null)
       await loadTasks()
-      go('/tasks')
+      go(taskListPath)
       setGlobalSuccessMessage('タスクを削除しました。')
     } catch (error) {
       setDetailErrorMessage(resolveUserMessage(error))

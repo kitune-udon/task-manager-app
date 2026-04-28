@@ -159,7 +159,7 @@ class CommentApiIntegrationTests extends ApiIntegrationTestBase {
         mockMvc.perform(get("/api/tasks/{taskId}/comments", context.task().getId())
                         .header("Authorization", bearer(outsiderToken)))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("ERR-AUTH-005"));
+                .andExpect(jsonPath("$.errorCode").value("ERR-TASK-009"));
     }
 
     @Test
@@ -236,7 +236,7 @@ class CommentApiIntegrationTests extends ApiIntegrationTestBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJson(Map.of("content", "blocked"))))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("ERR-AUTH-005"));
+                .andExpect(jsonPath("$.errorCode").value("ERR-TASK-009"));
     }
 
     @Test

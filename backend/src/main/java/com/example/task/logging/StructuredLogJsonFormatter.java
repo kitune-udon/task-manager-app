@@ -63,6 +63,8 @@ public final class StructuredLogJsonFormatter {
         appendField(payload, remainingFields, "size");
         appendField(payload, remainingFields, "teamId");
         appendField(payload, remainingFields, "memberUserId");
+        appendField(payload, remainingFields, "actorRole");
+        appendField(payload, remainingFields, "targetRole");
         appendField(payload, remainingFields, "newRole");
         appendField(payload, remainingFields, "jobName");
         appendField(payload, remainingFields, "startedAt");

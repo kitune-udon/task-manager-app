@@ -20,6 +20,8 @@ public class TaskSummaryResponse {
     private Priority priority;
     private LocalDate dueDate;
     private TaskUserResponse assignedUser;
+    private Long teamId;
+    private String teamName;
     private LocalDateTime updatedAt;
     private Long version;
 }

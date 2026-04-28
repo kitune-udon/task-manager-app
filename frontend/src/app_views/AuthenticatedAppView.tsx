@@ -1,10 +1,14 @@
+import { useEffect } from 'react'
 import type { ResolvedRoute } from '../app_navigation'
 import type { TaskPriority, TaskStatus } from '../lib/taskApi'
+import type { UseTeamStateResult } from '../hooks/useTeamState'
 import type { UseTaskStateResult } from '../hooks/useTaskState'
 import { useNotificationState } from '../hooks/useNotificationState'
 import { TaskCreatePage } from '../pages/TaskCreatePage'
 import { TaskDetailPage } from '../pages/TaskDetailPage'
 import { TaskListPage } from '../pages/TaskListPage'
+import { TeamDetailPage } from '../pages/TeamDetailPage'
+import { TeamListPage } from '../pages/TeamListPage'
 import { NotificationPage } from '../pages/NotificationPage'
 
 type TaskOption<T extends string> = Array<{ label: string; value: T }>
@@ -22,6 +26,7 @@ type Props = {
   onNavigate: (path: string, replace?: boolean) => void
   onLogout: () => void
   taskState: UseTaskStateResult
+  teamState: UseTeamStateResult
   notificationState: ReturnType<typeof useNotificationState>
   statusOptions: TaskOption<TaskStatus>
   priorityOptions: TaskOption<TaskPriority>
@@ -42,6 +47,7 @@ export function AuthenticatedAppView({
   onNavigate,
   onLogout,
   taskState,
+  teamState,
   notificationState,
   statusOptions,
   priorityOptions,
@@ -49,6 +55,33 @@ export function AuthenticatedAppView({
   editablePriorityOptions,
 }: Props) {
   const { list, detail, mutation, assignableUsers, actions } = taskState
+  const contextTeamId = taskState.context.teamId
+  const contextTeam = contextTeamId
+    ? teamState.list.teams.find((team) => String(team.id) === String(contextTeamId)) ?? null
+    : null
+  const selectedTaskTeamId = detail.selectedTask?.teamId ?? null
+  const selectedTaskTeam = selectedTaskTeamId
+    ? teamState.list.teams.find((team) => String(team.id) === String(selectedTaskTeamId)) ?? null
+    : null
+  const selectedTaskTeamRole = selectedTaskTeam?.myRole ?? null
+  const isTeamContextReady = Boolean(contextTeamId) && !teamState.list.isLoadingTeams && Boolean(contextTeam)
+
+  useEffect(() => {
+    if (route.page !== 'create') {
+      return
+    }
+
+    if (!contextTeamId) {
+      teamState.actions.showTeamListError('タスクを作成するチームを選択してください')
+      onNavigate('/teams', true)
+      return
+    }
+
+    if (teamState.list.hasLoadedTeams && !teamState.list.isLoadingTeams && !contextTeam) {
+      teamState.actions.showTeamListError('指定されたチームでタスクを作成できません')
+      onNavigate('/teams', true)
+    }
+  }, [contextTeam, contextTeamId, onNavigate, route.page, teamState.actions, teamState.list.hasLoadedTeams, teamState.list.isLoadingTeams])
 
   // 画面ごとの表示責務は各Pageへ寄せ、このコンポーネントではルートに応じたprops配線に集中する。
   switch (route.page) {
@@ -61,6 +94,11 @@ export function AuthenticatedAppView({
           onLogout={onLogout}
           unreadCount={notificationState.unreadCount}
           onShowList={() => void actions.handleShowList()}
+          onShowTeamDetail={() => contextTeamId ? onNavigate(`/teams/${contextTeamId}`) : onNavigate('/teams')}
+          contextTeamId={contextTeamId}
+          contextTeamName={contextTeam?.name ?? null}
+          isLoadingTeamContext={teamState.list.isLoadingTeams}
+          canCreateInTeam={isTeamContextReady}
           createErrorMessage={mutation.createErrorMessage}
           successMessage={successMessage}
           isSubmitting={mutation.isSubmittingTask}
@@ -80,11 +118,13 @@ export function AuthenticatedAppView({
           activePath={activePath}
           currentUserLabel={currentUserLabel}
           currentUserId={currentUserId}
+          currentTeamRole={selectedTaskTeamRole}
           onNavigate={onNavigate}
           onLogout={onLogout}
           unreadCount={notificationState.unreadCount}
           onRefreshUnreadCount={notificationState.actions.loadUnreadCount}
           onShowList={() => void actions.handleShowList()}
+          onShowTeamDetail={(teamId) => onNavigate(`/teams/${teamId}`)}
           onStartEdit={actions.handleStartEdit}
           onCancelEdit={actions.handleCancelEdit}
           onReloadDetail={() => (selectedTaskId ? detail.loadTaskDetail(selectedTaskId) : Promise.resolve(null))}
@@ -137,6 +177,34 @@ export function AuthenticatedAppView({
         />
       )
 
+    case 'teams':
+      return (
+        <TeamListPage
+          activePath={activePath}
+          currentUserLabel={currentUserLabel}
+          successMessage={successMessage}
+          teamState={teamState}
+          onNavigate={onNavigate}
+          onLogout={onLogout}
+          unreadCount={notificationState.unreadCount}
+        />
+      )
+
+    case 'teamDetail':
+      return (
+        <TeamDetailPage
+          activePath={activePath}
+          currentUserLabel={currentUserLabel}
+          currentUserId={currentUserId}
+          successMessage={successMessage}
+          teamState={teamState}
+          onNavigate={onNavigate}
+          onLogout={onLogout}
+          unreadCount={notificationState.unreadCount}
+          teamId={route.teamId}
+        />
+      )
+
     case 'list':
     default:
       return (
@@ -147,8 +215,12 @@ export function AuthenticatedAppView({
           onLogout={onLogout}
           unreadCount={notificationState.unreadCount}
           onShowCreate={actions.handleShowCreate}
+          onShowTeamDetail={(teamId) => onNavigate(`/teams/${teamId}`)}
           onReload={() => void actions.reloadTasks()}
           onShowDetail={actions.handleShowDetail}
+          contextTeamId={taskState.context.teamId}
+          teams={teamState.list.teams}
+          isLoadingTeams={teamState.list.isLoadingTeams}
           tasks={list.tasks}
           filteredTasks={list.filteredTasks}
           taskErrorMessage={list.taskErrorMessage}
@@ -156,8 +228,10 @@ export function AuthenticatedAppView({
           isLoadingTasks={list.isLoadingTasks}
           statusFilter={list.statusFilter}
           priorityFilter={list.priorityFilter}
+          teamFilter={list.teamFilter}
           onStatusFilterChange={list.setStatusFilter}
           onPriorityFilterChange={list.setPriorityFilter}
+          onTeamFilterChange={list.setTeamFilter}
           statusOptions={statusOptions}
           priorityOptions={priorityOptions}
         />

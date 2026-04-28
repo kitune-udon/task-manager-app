@@ -1,13 +1,16 @@
 package com.example.task.repository;
 
 import com.example.task.entity.TaskComment;
+import com.example.task.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 /**
@@ -51,4 +54,26 @@ public interface TaskCommentRepository extends JpaRepository<TaskComment, Long> 
      */
     @EntityGraph(attributePaths = {"task", "createdBy", "updatedBy", "deletedBy"})
     Optional<TaskComment> findById(Long id);
+
+    /**
+     * 指定タスクに紐づく未削除コメントをまとめて論理削除する。
+     *
+     * @param taskId タスクID
+     * @param deletedAt 削除日時
+     * @param deletedBy 削除者
+     * @return 更新件数
+     */
+    @Modifying
+    @Query("""
+            update TaskComment c
+            set c.deletedAt = :deletedAt,
+                c.deletedBy = :deletedBy
+            where c.task.id = :taskId
+              and c.deletedAt is null
+            """)
+    int softDeleteActiveByTaskId(
+            @Param("taskId") Long taskId,
+            @Param("deletedAt") LocalDateTime deletedAt,
+            @Param("deletedBy") User deletedBy
+    );
 }

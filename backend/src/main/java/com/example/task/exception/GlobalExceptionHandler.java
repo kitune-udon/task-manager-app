@@ -7,6 +7,9 @@ import com.example.task.dto.TaskCreateRequest;
 import com.example.task.dto.TaskUpdateRequest;
 import com.example.task.dto.common.ErrorDetail;
 import com.example.task.dto.common.ErrorResponse;
+import com.example.task.dto.team.AddTeamMemberRequest;
+import com.example.task.dto.team.CreateTeamRequest;
+import com.example.task.dto.team.UpdateTeamMemberRoleRequest;
 import com.example.task.logging.LoggingProperties;
 import com.example.task.logging.RequestLogContext;
 import com.example.task.logging.StructuredLogJsonFormatter;
@@ -386,6 +389,27 @@ public class GlobalExceptionHandler {
             return;
         }
 
+        if (ex instanceof BusinessException businessException) {
+            if (businessException.getLogEventId() != null) {
+                LinkedHashMap<String, Object> fields = structuredLogService.requestFields(
+                        request,
+                        status.value(),
+                        true,
+                        false,
+                        false
+                );
+                fields.put("errorCode", errorCode);
+                fields.put("safeMessage", message);
+                fields.putAll(businessException.getLogFields());
+                structuredLogService.warnApplication(businessException.getLogEventId(), "チーム業務エラー応答", fields);
+                return;
+            }
+
+            if (businessException.isSuppressGeneric4xxLog()) {
+                return;
+            }
+        }
+
         LinkedHashMap<String, Object> fields = structuredLogService.requestFields(
                 request,
                 status.value(),
@@ -410,6 +434,9 @@ public class GlobalExceptionHandler {
      */
     private ErrorCode resolveValidationErrorCode(Object target, List<ErrorDetail> details) {
         if (target instanceof TaskCreateRequest || target instanceof TaskUpdateRequest) {
+            if (target instanceof TaskCreateRequest && hasField(details, "teamId")) {
+                return ErrorCode.TASK_008;
+            }
             if (hasField(details, "title")) {
                 return ErrorCode.VAL_TASK_001;
             }
@@ -427,6 +454,14 @@ public class GlobalExceptionHandler {
             }
         }
 
+        if (target instanceof CreateTeamRequest) {
+            return ErrorCode.TEAM_001;
+        }
+
+        if (target instanceof AddTeamMemberRequest || target instanceof UpdateTeamMemberRoleRequest) {
+            return ErrorCode.TEAM_MEMBER_001;
+        }
+
         return ErrorCode.VAL_INPUT_001;
     }
 
@@ -441,6 +476,27 @@ public class GlobalExceptionHandler {
             HttpMessageNotReadableException ex,
             HttpServletRequest request
     ) {
+        if (isTeamRequest(request)) {
+            Throwable cause = ex.getMostSpecificCause();
+            if (cause instanceof InvalidFormatException invalidFormatException) {
+                String fieldName = invalidFormatException.getPath()
+                        .stream()
+                        .map(reference -> reference.getFieldName())
+                        .filter(Objects::nonNull)
+                        .findFirst()
+                        .orElse(null);
+
+                if ("role".equals(fieldName)) {
+                    return new ValidationErrorResolution(
+                            ErrorCode.TEAM_MEMBER_004,
+                            List.of(detail("role", "ロールはADMIN、MEMBERのいずれかを指定してください"))
+                    );
+                }
+            }
+
+            return new ValidationErrorResolution(ErrorCode.TEAM_001, null);
+        }
+
         if (!isTaskRequest(request)) {
             return new ValidationErrorResolution(ErrorCode.VAL_INPUT_001, null);
         }
@@ -488,6 +544,16 @@ public class GlobalExceptionHandler {
      */
     private boolean isTaskRequest(HttpServletRequest request) {
         return request.getRequestURI() != null && request.getRequestURI().startsWith("/api/tasks");
+    }
+
+    /**
+     * リクエストがチームAPI向けかどうかを判定する。
+     *
+     * @param request HTTPリクエスト
+     * @return チームAPI向けの場合はtrue
+     */
+    private boolean isTeamRequest(HttpServletRequest request) {
+        return request.getRequestURI() != null && request.getRequestURI().startsWith("/api/teams");
     }
 
     /**

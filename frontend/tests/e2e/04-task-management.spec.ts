@@ -5,6 +5,7 @@ import {
   createTaskViaApi,
   createTaskViaUi,
   deleteTaskViaApi,
+  ensureTeamViaApi,
   registerAndLogin,
 } from './helpers'
 
@@ -12,7 +13,7 @@ async function openTaskDetailFromList(page: Page, title: string) {
   const row = page.locator('tbody tr').filter({ hasText: title })
   await expect(row).toBeVisible()
   await row.getByRole('button', { name: '詳細' }).click()
-  await expect(page).toHaveURL(/\/tasks\/\d+$/)
+  await expect(page).toHaveURL(/\/tasks\/\d+(\?teamId=\d+)?$/)
 }
 
 test('TSK-L-04: ステータス条件でタスク一覧を絞り込める', async ({ page }) => {
@@ -51,7 +52,6 @@ test('TSK-L-06: 条件一致0件時は空状態メッセージを表示する', 
   await registerAndLogin(page, user)
 
   await expect(page.getByText('条件に一致するタスクはありません。')).toBeVisible()
-  await expect(page.locator('.summary-card').filter({ hasText: '表示件数' })).toContainText('0')
 })
 
 test('TSK-L-07: 一覧の対象行からタスク詳細へ遷移できる', async ({ page }) => {
@@ -69,9 +69,11 @@ test('TSK-L-08: タスク作成操作で作成画面へ遷移できる', async (
   const user = createE2eUser()
 
   await registerAndLogin(page, user)
-  await page.locator('.content-header').getByRole('button', { name: 'タスク作成' }).click()
+  const team = await ensureTeamViaApi(page)
+  await page.goto(`/tasks?teamId=${team.id}`)
+  await page.locator('.content-header').getByRole('button', { name: 'タスクを作成する' }).click()
 
-  await expect(page).toHaveURL(/\/tasks\/new$/)
+  await expect(page).toHaveURL(new RegExp(`/tasks/new\\?teamId=${team.id}$`))
   await expect(page.getByRole('heading', { name: 'タスク作成' })).toBeVisible()
 })
 
@@ -106,7 +108,7 @@ test('TSK-C-02: タスク作成成功後にタスク一覧へ戻る', async ({ p
   await registerAndLogin(page, user)
   await createTaskViaUi(page, { title })
 
-  await expect(page).toHaveURL(/\/tasks$/)
+  await expect(page).toHaveURL(/\/tasks\?teamId=\d+$/)
   await expect(page.getByText('タスクを作成しました。')).toBeVisible()
 })
 
@@ -219,7 +221,7 @@ test('TSK-D-01: 削除権限を持つユーザーがタスクを削除できる'
   page.once('dialog', (dialog) => dialog.accept())
   await page.locator('.content-header').getByRole('button', { name: '削除', exact: true }).click()
 
-  await expect(page).toHaveURL(/\/tasks$/)
+  await expect(page).toHaveURL(/\/tasks(\?teamId=\d+)?$/)
   await expect(page.getByText('タスクを削除しました。')).toBeVisible()
 })
 

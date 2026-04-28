@@ -10,12 +10,17 @@ import com.example.task.entity.Priority;
 import com.example.task.entity.Task;
 import com.example.task.entity.TaskAttachment;
 import com.example.task.entity.TaskStatus;
+import com.example.task.entity.Team;
+import com.example.task.entity.TeamMember;
+import com.example.task.entity.TeamRole;
 import com.example.task.entity.User;
 import com.example.task.repository.ActivityLogRepository;
 import com.example.task.repository.NotificationRepository;
 import com.example.task.repository.TaskAttachmentRepository;
 import com.example.task.repository.TaskCommentRepository;
 import com.example.task.repository.TaskRepository;
+import com.example.task.repository.TeamMemberRepository;
+import com.example.task.repository.TeamRepository;
 import com.example.task.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -67,6 +72,12 @@ abstract class ApiIntegrationTestBase {
     protected TaskRepository taskRepository;
 
     @Autowired
+    protected TeamRepository teamRepository;
+
+    @Autowired
+    protected TeamMemberRepository teamMemberRepository;
+
+    @Autowired
     protected TaskCommentRepository taskCommentRepository;
 
     @Autowired
@@ -97,6 +108,8 @@ abstract class ApiIntegrationTestBase {
         taskAttachmentRepository.deleteAllInBatch();
         taskCommentRepository.deleteAllInBatch();
         taskRepository.deleteAllInBatch();
+        teamMemberRepository.deleteAllInBatch();
+        teamRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
     }
 
@@ -110,6 +123,18 @@ abstract class ApiIntegrationTestBase {
     }
 
     protected Task createTask(String title, User createdBy, User assignedUser, TaskStatus status, Priority priority) {
+        Team team = createTeamWithMember(createdBy, createdBy.getName() + "のチーム", TeamRole.OWNER);
+        if (assignedUser != null) {
+            ensureTeamMembership(team, assignedUser, TeamRole.MEMBER);
+        }
+        return createTask(title, createdBy, assignedUser, team, status, priority);
+    }
+
+    protected Task createTask(String title, User createdBy, User assignedUser, Team team, TaskStatus status, Priority priority) {
+        ensureTeamMembership(team, createdBy, TeamRole.MEMBER);
+        if (assignedUser != null) {
+            ensureTeamMembership(team, assignedUser, TeamRole.MEMBER);
+        }
         Task task = Task.builder()
                 .title(title)
                 .description(title + " description")
@@ -118,8 +143,46 @@ abstract class ApiIntegrationTestBase {
                 .dueDate(LocalDate.of(2026, 4, 20))
                 .assignedUser(assignedUser)
                 .createdBy(createdBy)
+                .team(team)
                 .build();
-        return taskRepository.save(task);
+        return taskRepository.saveAndFlush(task);
+    }
+
+    protected Team createTeam(User createdBy, String name) {
+        return teamRepository.findByCreatedByIdAndName(createdBy.getId(), name)
+                .orElseGet(() -> teamRepository.save(Team.builder()
+                        .name(name)
+                        .description(name + " description")
+                        .createdBy(createdBy)
+                        .build()));
+    }
+
+    protected Team createTeamWithMember(User user, String name, TeamRole role) {
+        Team team = createTeam(user, name);
+        addTeamMember(team, user, role);
+        return team;
+    }
+
+    protected TeamMember addTeamMember(Team team, User user, TeamRole role) {
+        return teamMemberRepository.findByTeamIdAndUserId(team.getId(), user.getId())
+                .map(existing -> {
+                    existing.setRole(role);
+                    return teamMemberRepository.save(existing);
+                })
+                .orElseGet(() -> teamMemberRepository.save(TeamMember.builder()
+                        .team(team)
+                        .user(user)
+                        .role(role)
+                        .build()));
+    }
+
+    private TeamMember ensureTeamMembership(Team team, User user, TeamRole defaultRole) {
+        return teamMemberRepository.findByTeamIdAndUserId(team.getId(), user.getId())
+                .orElseGet(() -> teamMemberRepository.save(TeamMember.builder()
+                        .team(team)
+                        .user(user)
+                        .role(defaultRole)
+                        .build()));
     }
 
     protected TaskAttachment createAttachment(Task task, User createdBy, String fileName, long fileSize) {

@@ -51,8 +51,9 @@ test('LGN-06: 保護画面への直接アクセス後はログイン後に戻り
   await page.getByLabel(/^パスワード(?!確認)/).fill(user.password)
   await page.getByRole('button', { name: 'ログイン' }).click()
 
-  await expect(page).toHaveURL(/\/tasks\/new$/)
-  await expect(page.getByRole('heading', { name: 'タスク作成' })).toBeVisible()
+  await expect(page).toHaveURL(/\/teams$/)
+  await expect(page.getByRole('heading', { name: 'チーム一覧' })).toBeVisible()
+  await expect(page.getByText('タスクを作成するチームを選択してください')).toBeVisible()
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem('postLoginRedirectPath'))).toBeNull()
 })
 
@@ -74,6 +75,22 @@ test('REG-04: 登録画面はパスワード確認不一致を画面内で扱う
 
   await expect(page).toHaveURL(/\/signup$/)
   await expect(page.getByText('確認用パスワードが一致しません。')).toBeVisible()
+})
+
+test('REG-05: 登録済みメールアドレスではバックエンドのエラーメッセージを表示する', async ({ page }) => {
+  const user = createE2eUser()
+
+  await registerUser(page, user)
+  await page.goto('/signup')
+  await page.getByLabel(/^ユーザー名/).fill(user.name)
+  await page.getByLabel(/^メールアドレス/).fill(user.email)
+  await page.getByLabel(/^パスワード(?!確認)/).fill(user.password)
+  await page.getByLabel(/^パスワード確認/).fill(user.password)
+  await page.getByRole('button', { name: '登録する' }).click()
+
+  await expect(page).toHaveURL(/\/signup$/)
+  await expect(page.getByText('メールアドレスは既に登録されています')).toBeVisible()
+  await expect(page.getByText(/Request failed with status code 409/)).toHaveCount(0)
 })
 
 test('REG-06: 登録画面からログイン画面へ戻れる', async ({ page }) => {

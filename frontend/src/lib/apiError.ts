@@ -36,11 +36,24 @@ function parseApiError(error: unknown): ApiErrorPayload | undefined {
   }
 
   const responseData = error.response?.data
-  if (!responseData || typeof responseData !== 'object') {
+  if (!responseData) {
     return undefined
   }
 
-  return responseData as ApiErrorPayload
+  if (typeof responseData === 'object') {
+    return responseData as ApiErrorPayload
+  }
+
+  if (typeof responseData === 'string') {
+    try {
+      const parsed = JSON.parse(responseData)
+      return typeof parsed === 'object' && parsed !== null ? parsed as ApiErrorPayload : undefined
+    } catch {
+      return undefined
+    }
+  }
+
+  return undefined
 }
 
 /**
@@ -116,9 +129,13 @@ export function resolveUserMessage(error: unknown): string {
     return rawMessage || '認証エラーが発生しました。再度ログインしてください。'
   }
 
+  if (rawMessage) {
+    return rawMessage
+  }
+
   if (error instanceof Error && error.message.trim()) {
     return error.message
   }
 
-  return rawMessage || 'エラーが発生しました。'
+  return 'エラーが発生しました。'
 }
