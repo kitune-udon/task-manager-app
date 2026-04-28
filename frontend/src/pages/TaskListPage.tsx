@@ -121,7 +121,7 @@ export function TaskListPage(props: Props) {
             <div className="table-scroll">
               <table>
                 <thead>
-                  <tr><th>タスク名</th><th>チーム</th><th>ステータス</th><th>優先度</th><th>担当者</th><th>期限</th><th>操作</th></tr>
+                  <tr><th>タスク名</th><th>チーム</th><th>ステータス</th><th>優先度</th><th>担当者</th><th>期限</th></tr>
                 </thead>
                 <tbody>
                   {props.filteredTasks.map((task) => (
@@ -129,7 +129,9 @@ export function TaskListPage(props: Props) {
                       <td>
                         <div className="title-cell">
                           <span className="task-title-meta">#{task.id}</span>
-                          <strong>{task.title}</strong>
+                          <button className="task-title-link-button" onClick={() => props.onShowDetail(task.id)} type="button">
+                            {task.title}
+                          </button>
                           {task.description ? <span>{task.description}</span> : null}
                         </div>
                       </td>
@@ -138,7 +140,6 @@ export function TaskListPage(props: Props) {
                       <td><span className={badgeClass('priority-badge', task.priority)}>{task.priority ?? '-'}</span></td>
                       <td>{task.assignedUserName ?? '-'}</td>
                       <td>{formatDate(task.dueDate)}</td>
-                      <td><button className="table-row-link-button" onClick={() => props.onShowDetail(task.id)} type="button">詳細</button></td>
                     </tr>
                   ))}
                 </tbody>

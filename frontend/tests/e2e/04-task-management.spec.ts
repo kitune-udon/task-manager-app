@@ -12,7 +12,7 @@ import {
 async function openTaskDetailFromList(page: Page, title: string) {
   const row = page.locator('tbody tr').filter({ hasText: title })
   await expect(row).toBeVisible()
-  await row.getByRole('button', { name: '詳細' }).click()
+  await row.getByRole('button', { name: title }).click()
   await expect(page).toHaveURL(/\/tasks\/\d+(\?teamId=\d+)?$/)
 }
 
@@ -54,7 +54,7 @@ test('TSK-L-06: 条件一致0件時は空状態メッセージを表示する', 
   await expect(page.getByText('条件に一致するタスクはありません。')).toBeVisible()
 })
 
-test('TSK-L-07: 一覧の対象行からタスク詳細へ遷移できる', async ({ page }) => {
+test('TSK-L-07: 一覧のタスク名からタスク詳細へ遷移できる', async ({ page }) => {
   const user = createE2eUser()
   const title = createTaskTitle('playwright-list-detail')
 

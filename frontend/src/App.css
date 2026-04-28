@@ -1595,7 +1595,8 @@ textarea:focus {
   min-width: 820px;
 }
 .task-table-card .table-scroll table {
-  min-width: 1120px;
+  min-width: 960px;
+  table-layout: fixed;
 }
 thead {
   background: #f4f4f5;
@@ -1625,9 +1626,28 @@ tbody tr:hover {
 .title-cell {
   max-width: 420px;
 }
-.title-cell strong {
+.task-title-link-button {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  font: inherit;
   color: #09090b;
   font-size: 0.9rem;
+  font-weight: 800;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.task-title-link-button:hover,
+.task-title-link-button:focus-visible {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .title-cell span {
   display: -webkit-box;
@@ -1643,41 +1663,47 @@ tbody tr:hover {
   font-weight: 650;
 }
 .team-name-cell {
+  display: block;
+  overflow: hidden;
   color: #52525b;
   font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .task-table-card th,
 .task-table-card td {
+  padding-right: 18px;
+  padding-left: 18px;
   white-space: nowrap;
 }
 .task-table-card th:first-child,
 .task-table-card td:first-child {
-  min-width: 280px;
+  width: 30%;
   white-space: normal;
 }
 .task-table-card th:nth-child(2),
 .task-table-card td:nth-child(2) {
-  min-width: 190px;
+  width: 21%;
   white-space: normal;
 }
+.task-table-card th:nth-child(3),
+.task-table-card td:nth-child(3) {
+  width: 12%;
+}
+.task-table-card th:nth-child(4),
+.task-table-card td:nth-child(4) {
+  width: 11%;
+}
 .task-table-card th:nth-child(5),
-.task-table-card td:nth-child(5),
+.task-table-card td:nth-child(5) {
+  width: 13%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .task-table-card th:last-child,
 .task-table-card td:last-child {
-  min-width: 82px;
-}
-.table-row-link-button {
-  min-height: auto;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: #030213;
-  font-size: 0.9rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-.table-row-link-button:hover {
-  text-decoration: underline;
+  width: 13%;
+  min-width: 112px;
 }
 .badge,
 .status-badge,

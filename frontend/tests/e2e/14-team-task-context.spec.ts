@@ -125,7 +125,7 @@ test('TTEAM-U-01 TTEAM-U-02 TTEAM-U-06: 編集画面でteamは固定表示され
   const task = await createTaskViaApi(page, title, undefined, { teamId: Number(team.id) })
 
   await page.goto(`/tasks?teamId=${team.id}`)
-  await page.locator('tbody tr').filter({ hasText: title }).getByRole('button', { name: '詳細' }).click()
+  await page.locator('tbody tr').filter({ hasText: title }).getByRole('button', { name: title }).click()
   await expect(page).toHaveURL(new RegExp(`/tasks/${task.id}\\?teamId=${team.id}$`))
   await page.getByRole('button', { name: '編集' }).click()
 
@@ -147,13 +147,13 @@ test('TTEAM-X-07 TTEAM-L-06: 一覧から詳細へ進んでも戻り先が維持
   const team = await ensureTeamViaApi(page, createTaskTitle('playwright-return-team'))
   await createTaskViaApi(page, globalTitle, undefined, { teamId: Number(team.id) })
   await page.goto('/tasks')
-  await page.locator('tbody tr').filter({ hasText: globalTitle }).getByRole('button', { name: '詳細' }).click()
+  await page.locator('tbody tr').filter({ hasText: globalTitle }).getByRole('button', { name: globalTitle }).click()
   await page.getByRole('button', { name: '一覧へ戻る' }).click()
   await expect(page).toHaveURL(/\/tasks$/)
 
   await createTaskViaApi(page, teamTitle, undefined, { teamId: Number(team.id) })
   await page.goto(`/tasks?teamId=${team.id}`)
-  await page.locator('tbody tr').filter({ hasText: teamTitle }).getByRole('button', { name: '詳細' }).click()
+  await page.locator('tbody tr').filter({ hasText: teamTitle }).getByRole('button', { name: teamTitle }).click()
   await page.getByRole('button', { name: '一覧へ戻る' }).click()
   await expect(page).toHaveURL(new RegExp(`/tasks\\?teamId=${team.id}$`))
 })
