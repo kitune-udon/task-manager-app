@@ -58,9 +58,9 @@ test('NTF-P-03: 画面遷移時に未読件数を再取得する', async ({ page
   await expect.poll(() => unreadCountRequests).toBeGreaterThan(0)
 
   const afterLoginRequests = unreadCountRequests
-  await page.locator('.sidebar').getByRole('button', { name: 'タスク作成' }).click()
+  await page.locator('.sidebar').getByRole('button', { name: /通知/ }).click()
 
-  await expect(page).toHaveURL(/\/tasks\/new$/)
+  await expect(page).toHaveURL(/\/notifications$/)
   await expect.poll(() => unreadCountRequests).toBeGreaterThan(afterLoginRequests)
 })
 

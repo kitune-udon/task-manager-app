@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test'
 import {
+  addTeamMemberViaApi,
   createE2eUser,
   createTaskTitle,
   createTaskViaApi,
+  createTeamViaApi,
   getAssignableUserIdByEmail,
   loginUser,
   logout,
@@ -21,7 +23,9 @@ test('AUTH-01 AUTH-09: 参照権限のないタスク詳細・履歴は表示さ
   await registerAndLogin(page, creator)
 
   const assigneeId = await getAssignableUserIdByEmail(page, assignee.email)
-  const task = await createTaskViaApi(page, title, assigneeId)
+  const team = await createTeamViaApi(page, createTaskTitle('playwright-auth-team'))
+  await addTeamMemberViaApi(page, Number(team.id), assigneeId)
+  const task = await createTaskViaApi(page, title, assigneeId, { teamId: Number(team.id) })
 
   await logout(page)
   await loginUser(page, outsider)
